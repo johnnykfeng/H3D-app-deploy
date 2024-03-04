@@ -4,6 +4,7 @@ from dash import dcc, html
 from dash.dependencies import Input, Output
 import plotly.graph_objects as go
 import pandas as pd
+import numpy as np
 import os
 import sys
 
@@ -20,13 +21,37 @@ EM = ExtractModule(csv_file="data\Co57_2mins_2000V_20cycles.csv")
 df_transformed_list = EM.transform_all_df()
 organized_data = OrganizeData(df_transformed_list, EM.csv_file)
 all_data_dict = organized_data.all_data_dict
+
+def calculate_peak_count(array: np.array, peak_bin: int, peak_halfwidth=25):
+    """Calculate the counts in a peak given the array and the peak bin number."""
+    peak_count = np.sum(array[peak_bin - peak_halfwidth : peak_bin + peak_halfwidth])
+    return peak_count
+
+peak_bin = 224
+peak_halfwidth = 25
+
+# calculate the peak count for each pixel and create a heatmap
+for keys, values in all_data_dict.items():
+    df = values["df"]
+    # create a new column for the peak count of each pixel
+    df["peak_count"] = df["array_bins"].apply(
+        lambda x: calculate_peak_count(x, peak_bin=peak_bin)
+    )
+    heatmap_peak_count = df.pivot_table(
+        index="y_index", columns="x_index", values="peak_count"
+    )
+    all_data_dict[keys]["df"] = df
+    all_data_dict[keys]["heatmap_peak"] = heatmap_peak_count
+
+organized_data.all_data_dict = all_data_dict # update the all_data_dict in the OrganizeData object
 N_MODULES = EM.number_of_modules  # number of dataframes
-df_plot = organized_data.df_plot
+df_plot = organized_data.organize_line_plots(if_calculate_peak_count=True)
 
 del df_transformed_list  # delete the list of dataframes to save memory
 del organized_data  # delete the organized data object to save memory
 del all_data_dict  # delete the all_data_dict to save memory
 del EM  # delete the ExtractModule object to save memory
+
 
 # %% set up Dash app
 app = dash.Dash(__name__)
@@ -161,7 +186,7 @@ app.layout = html.Div(
                             options=[
                                 {"label": str(i), "value": i} for i in range(1, 12)
                             ],
-                            value=3,
+                            value=5,
                             style={
                                 "width": "150%",
                                 "display": "flex",
@@ -187,7 +212,7 @@ app.layout = html.Div(
                             options=[
                                 {"label": str(i), "value": i} for i in range(1, 12)
                             ],
-                            value=3,
+                            value=2,
                             style={"width": "150%", "display": "flex"},
                         ),
                     ],
@@ -208,7 +233,7 @@ app.layout = html.Div(
                             options=[
                                 {"label": str(i), "value": i} for i in range(1, 12)
                             ],
-                            value=4,
+                            value=5,
                             style={
                                 "width": "150%",
                                 "display": "flex",
@@ -234,7 +259,7 @@ app.layout = html.Div(
                             options=[
                                 {"label": str(i), "value": i} for i in range(1, 12)
                             ],
-                            value=4,
+                            value=3,
                             style={"width": "150%", "display": "flex"},
                         ),
                     ],
@@ -271,9 +296,6 @@ def update_line_plot(x_index_1, y_index_1, x_index_2, y_index_2, stage_coordinat
     position_values, pixel_total_counts = get_plot_data(
         x_index_1, y_index_1, stage_coordinate
     )
-    # stage_x_list_2, pixel_total_counts_list_2 = get_plot_data(
-    #     x_index_2, y_index_2, stage_coordinate
-    #     )
 
     fig = go.Figure()
     fig.add_trace(
@@ -281,7 +303,7 @@ def update_line_plot(x_index_1, y_index_1, x_index_2, y_index_2, stage_coordinat
             x=position_values,
             y=pixel_total_counts,
             mode="lines+markers",
-            name="Line Plot 1",
+            name=f"Pixel ({x_index_1}, {y_index_1})",
             line=dict(color="blue"),
         )
     )
@@ -295,15 +317,17 @@ def update_line_plot(x_index_1, y_index_1, x_index_2, y_index_2, stage_coordinat
             x=position_values,
             y=pixel_total_counts,
             mode="lines+markers",
-            name="Line Plot 2",
+            name=f"Pixel ({x_index_2}, {y_index_2})",
             line=dict(color="red"),
         )
     )
 
     fig.update_layout(
-        xaxis_title="stage position",
-        yaxis_title="total pixel counts",
-        title=f"Line Plots",
+        xaxis_title="Stage position (mm)",
+        yaxis_title="Peak counts",
+        title=f"Peak Counts vs Stage Position",
+        width=800,
+        height=500,
     )
 
     return fig
@@ -335,7 +359,7 @@ def update_line_plot_2(x_index_3, y_index_3, x_index_4, y_index_4, stage_coordin
             x=stage_x_list_3,
             y=pixel_total_counts_list_3,
             mode="lines+markers",
-            name="Line Plot 3",
+            name=f"Pixel ({x_index_3}, {y_index_3})",
             line=dict(color="blue"),
         )
     )
@@ -344,7 +368,7 @@ def update_line_plot_2(x_index_3, y_index_3, x_index_4, y_index_4, stage_coordin
             x=stage_x_list_4,
             y=pixel_total_counts_list_4,
             mode="lines+markers",
-            name="Line Plot 4",
+            name=f"Pixel ({x_index_4}, {y_index_4})",
             line=dict(color="red"),
         )
     )
@@ -369,7 +393,8 @@ def get_plot_data(selected_x_index, selected_y_index, stage_coordinate):
     else:
         stage_list = df_plot_filtered["y_position"].values[0]
 
-    pixel_total_counts_list = df_plot_filtered["total_counts"].values[0]
+    # pixel_total_counts_list = df_plot_filtered["total_counts"].values[0]
+    pixel_total_counts_list = df_plot_filtered["peak_counts"].values[0]
 
     return stage_list, pixel_total_counts_list
 

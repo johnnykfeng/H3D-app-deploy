@@ -307,7 +307,7 @@ class OrganizeData:
         self.x_positions = None
         self.y_positions = None
         self.all_data_dict = self.organize_all_data()
-        self.df_plot = self.organize_line_plots()
+        self.df_plot = None
     
     def organize_all_data(self):
         """Main method to organize the data."""
@@ -333,7 +333,7 @@ class OrganizeData:
             }
         return all_data_dict
     
-    def organize_line_plots(self):
+    def organize_line_plots(self, if_calculate_peak_count = False):
         """
         Organizes the data for the line plots.
         Skips the first two x and y positions since they are background measurements.
@@ -349,11 +349,15 @@ class OrganizeData:
             for y_idx in range(1, 12):
                 counter += 1
                 pixel_total_counts_list = []
+                pixel_peak_counts_list = []
                 for i in range(2, self.N_MODULES):
                     df = self.all_data_dict[i]["df"]
                     pixel_df = df[(df["x_index"] == x_idx) & (df["y_index"] == y_idx)]
                     pixel_total_counts = pixel_df["total_counts"].values[0]
                     pixel_total_counts_list.append(pixel_total_counts)
+                    if if_calculate_peak_count:
+                        peak_count = pixel_df["peak_count"].max()
+                        pixel_peak_counts_list.append(peak_count)
 
                 df_plot_rows.append(
                     {
@@ -365,6 +369,8 @@ class OrganizeData:
                         "total_counts": pixel_total_counts_list, # also a list
                     }
                 )
+                if if_calculate_peak_count:
+                    df_plot_rows[-1]["peak_counts"] = pixel_peak_counts_list
 
         df_plot = pd.DataFrame(df_plot_rows)
         return df_plot
