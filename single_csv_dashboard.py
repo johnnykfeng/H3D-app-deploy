@@ -24,12 +24,9 @@ def find_csv_files(directory):
                 csv_files.append(os.path.join(root, file))
     return csv_files
 
-# directory = r"Y:\M2766\R&D\Jira-RD-748" # Yuxin's data
-directory = r"data\leaky_pixel_data"
-# directory = r"Z:\R&D\Personal\JohnF\H3D_MAPPER-DATA\Varying Source Height Test Data - No Mask"
-# directory = r"Y:\M2766\R&D\Jira-RD-748\M10710_REF_EC2409_Thresh_117-132_Test3"
+directory = r"data/leaky_pixel_data"
 csv_files = find_csv_files(directory)
-# ic(csv_files)
+ic(csv_files)
 
 def calculate_peak_count(array: np.array, peak_bin: int, peak_halfwidth=25):
     """Calculate the counts in a peak given the array and the peak bin number."""
@@ -237,193 +234,197 @@ def update_spectrum_pixel(csv_file, x_index, y_index, x_range, y_range):
     return fig
 
 
-app = dash.Dash(__name__)
-
-app.layout = html.Div(
-    [
-        html.Div(
-            [
-                html.H2("Heatmap Dashboard"),
-                dcc.Dropdown(
-                    id="csv-dropdown",
-                    options=[
-                        {"label": os.path.basename(csv_file), "value": csv_file}
-                        for csv_file in csv_files
-                    ],
-                    value=csv_files[0],
-                    style={"width": "80%"},
-                ),
-                dcc.RadioItems(
-                    id="count-type",
-                    options=[
-                        {"label": "Peak Counts", "value": "peak_counts"},
-                        {"label": "Total Counts", "value": "total_counts"},
-                    ],
-                    value="total_counts",
-                    labelStyle={"display": "inline-block"},
-                ),
-                dcc.Graph(
-                    id="heatmap-graph",
-                    clickData=(
-                        {"points": [{"x": 3, "y": 3}]}
-                        if "clickData" not in locals()
-                        else "clickData"
-                    ),
-                ),
-            ],
-            style={"display": "flex", "flex-direction": "column"},
-        ),
-        html.Div(
-            [
-                html.H2("Spectrum Dashboard"),
-                dcc.Graph(id="spectrum-avg-graph"),
-                dcc.Graph(id="spectrum-pixel-graph-1"),
-                # dcc.Input(id="x-index", type="number", value=1),
-                html.Div(
-                    [
-                        html.Label("X -  "),
-                        dcc.Dropdown(
-                            id="x-index-dropdown",
-                            options=[
-                                {"label": str(i), "value": i} for i in range(1, 12)
-                            ],
-                            value=9,
-                            style={"width": "40%"},
-                        ),
-                        html.Label("Y -  "),
-                        dcc.Dropdown(
-                            id="y-index-dropdown",
-                            options=[
-                                {"label": str(i), "value": i} for i in range(1, 12)
-                            ],
-                            value=3,
-                            style={"width": "40%"},
-                        ),
-                    ],
-                    style={"display": "flex", "flex-direction": "row"},
-                ),
-                dcc.Graph(id="spectrum-pixel-graph-2"),
-                # bins range slider (x-axis)
-                html.Div(
-                    [
-                        html.Label("X"),
-                        dcc.RangeSlider(
-                            min=0,
-                            max=1499,
-                            value=[1, 200],
-                            id="x-axis-slider",
-                        ),
-                    ],
-                    style={
-                        "width": "70%",
-                    },
-                ),
-                # counts range slider (y-axis)
-                html.Div(
-                    [
-                        html.Label("Y"),
-                        dcc.RangeSlider(
-                            min=0,
-                            max=100,
-                            value=[0, 60],
-                            id="y-axis-slider",
-                        ),
-                    ],
-                    style={
-                        "width": "70%",
-                    },
-                ),
-            ],
-            style={"display": "flex", "flex-direction": "column"},
-        ),
-    ],
-    style={
-        "display": "flex",
-    },
-)
-
-
-@app.callback(
-    Output("heatmap-graph", "figure"),
-    [Input("csv-dropdown", "value"), Input("count-type", "value")],
-)
-def update_heatmap_graph(csv_file, count_type):
-    return update_heatmap(csv_file, count_type)
-
-
-@app.callback(
-    Output("spectrum-avg-graph", "figure"),
-    [
-        Input("csv-dropdown", "value"),
-        Input("x-axis-slider", "value"),
-        Input("y-axis-slider", "value"),
-    ],
-)
-def update_spectrum_avg_graph(csv_file, x_range, y_range):
-    return update_spectrum_avg(csv_file, x_range, y_range)
-
-
-@app.callback(
-    Output("spectrum-pixel-graph-1", "figure"),
-    [
-        Input("csv-dropdown", "value"),
-        Input("heatmap-graph", "clickData"),
-        Input("x-axis-slider", "value"),
-        Input("y-axis-slider", "value"),
-    ],
-)
-def update_spectrum_pixel_graph(csv_file, clickData, x_range, y_range):
-    # print(f"{clickData = }")
-    # ic(clickData)
-    x_index_click = clickData["points"][0]["x"]
-    y_index_click = clickData["points"][0]["y"]
-    # print(f"{x_index_click = }, {y_index_click = }")
-    ic(x_index_click, y_index_click)
-    return update_spectrum_pixel(
-        csv_file, x_index_click, y_index_click, x_range, y_range
-    )
-
-
-@app.callback(
-    Output("spectrum-pixel-graph-2", "figure"),
-    [
-        Input("csv-dropdown", "value"),
-        Input("x-index-dropdown", "value"),
-        Input("y-index-dropdown", "value"),
-        Input("x-axis-slider", "value"),
-        Input("y-axis-slider", "value"),
-    ],
-)
-def update_spectrum_pixel_graph(csv_file, x_index, y_index, x_range, y_range):
-    return update_spectrum_pixel(csv_file, x_index, y_index, x_range, y_range)
-
-
-@app.callback(
-    [
-        Output("x-axis-slider", "value"),
-        Output("x-axis-slider", "max"),
-        Output("y-axis-slider", "value"),
-        Output("y-axis-slider", "max"),
-    ],
-    [Input("csv-dropdown", "value")],
-)
-def update_slider_values(csv_file):
-    _, _, x_range, y_range = csv2df[csv_file]
-    if "Cs137" in csv_file:
-        # x_range = [0, 1499]
-        # y_range = [0, 100]
-        x_max, y_max = 1499, 200
-    elif "Am241" in csv_file:
-        # x_range = [0, 199]
-        # y_range = [0, 60]
-        x_max, y_max = 199, 80
-    else:
-        # x_range = [0, 1499]
-        # y_range = [0, 100]
-        x_max, y_max = 1499, 200
-
-    return x_range, x_range[1], y_range, y_range[1]
-
-
+def main():
+	
+	app = dash.Dash(__name__)
+	
+	app.layout = html.Div(
+	    [
+	        html.Div(
+	            [
+	                html.H2("Heatmap Dashboard"),
+	                dcc.Dropdown(
+	                    id="csv-dropdown",
+	                    options=[
+	                        {"label": os.path.basename(csv_file), "value": csv_file}
+	                        for csv_file in csv_files
+	                    ],
+	                    value=csv_files[0],
+	                    style={"width": "80%"},
+	                ),
+	                dcc.RadioItems(
+	                    id="count-type",
+	                    options=[
+	                        {"label": "Peak Counts", "value": "peak_counts"},
+	                        {"label": "Total Counts", "value": "total_counts"},
+	                    ],
+	                    value="total_counts",
+	                    labelStyle={"display": "inline-block"},
+	                ),
+	                dcc.Graph(
+	                    id="heatmap-graph",
+	                    clickData=(
+	                        {"points": [{"x": 3, "y": 3}]}
+	                        if "clickData" not in locals()
+	                        else "clickData"
+	                    ),
+	                ),
+	            ],
+	            style={"display": "flex", "flex-direction": "column"},
+	        ),
+	        html.Div(
+	            [
+	                html.H2("Spectrum Dashboard"),
+	                dcc.Graph(id="spectrum-avg-graph"),
+	                dcc.Graph(id="spectrum-pixel-graph-1"),
+	                # dcc.Input(id="x-index", type="number", value=1),
+	                html.Div(
+	                    [
+	                        html.Label("X -  "),
+	                        dcc.Dropdown(
+	                            id="x-index-dropdown",
+	                            options=[
+	                                {"label": str(i), "value": i} for i in range(1, 12)
+	                            ],
+	                            value=9,
+	                            style={"width": "40%"},
+	                        ),
+	                        html.Label("Y -  "),
+	                        dcc.Dropdown(
+	                            id="y-index-dropdown",
+	                            options=[
+	                                {"label": str(i), "value": i} for i in range(1, 12)
+	                            ],
+	                            value=3,
+	                            style={"width": "40%"},
+	                        ),
+	                    ],
+	                    style={"display": "flex", "flex-direction": "row"},
+	                ),
+	                dcc.Graph(id="spectrum-pixel-graph-2"),
+	                # bins range slider (x-axis)
+	                html.Div(
+	                    [
+	                        html.Label("X"),
+	                        dcc.RangeSlider(
+	                            min=0,
+	                            max=1499,
+	                            value=[1, 200],
+	                            id="x-axis-slider",
+	                        ),
+	                    ],
+	                    style={
+	                        "width": "70%",
+	                    },
+	                ),
+	                # counts range slider (y-axis)
+	                html.Div(
+	                    [
+	                        html.Label("Y"),
+	                        dcc.RangeSlider(
+	                            min=0,
+	                            max=100,
+	                            value=[0, 60],
+	                            id="y-axis-slider",
+	                        ),
+	                    ],
+	                    style={
+	                        "width": "70%",
+	                    },
+	                ),
+	            ],
+	            style={"display": "flex", "flex-direction": "column"},
+	        ),
+	    ],
+	    style={
+	        "display": "flex",
+	    },
+	)
+	
+	
+	@app.callback(
+	    Output("heatmap-graph", "figure"),
+	    [Input("csv-dropdown", "value"), Input("count-type", "value")],
+	)
+	def update_heatmap_graph(csv_file, count_type):
+	    return update_heatmap(csv_file, count_type)
+	
+	
+	@app.callback(
+	    Output("spectrum-avg-graph", "figure"),
+	    [
+	        Input("csv-dropdown", "value"),
+	        Input("x-axis-slider", "value"),
+	        Input("y-axis-slider", "value"),
+	    ],
+	)
+	def update_spectrum_avg_graph(csv_file, x_range, y_range):
+	    return update_spectrum_avg(csv_file, x_range, y_range)
+	
+	
+	@app.callback(
+	    Output("spectrum-pixel-graph-1", "figure"),
+	    [
+	        Input("csv-dropdown", "value"),
+	        Input("heatmap-graph", "clickData"),
+	        Input("x-axis-slider", "value"),
+	        Input("y-axis-slider", "value"),
+	    ],
+	)
+	def update_spectrum_pixel_graph(csv_file, clickData, x_range, y_range):
+	    # print(f"{clickData = }")
+	    # ic(clickData)
+	    x_index_click = clickData["points"][0]["x"]
+	    y_index_click = clickData["points"][0]["y"]
+	    # print(f"{x_index_click = }, {y_index_click = }")
+	    ic(x_index_click, y_index_click)
+	    return update_spectrum_pixel(
+	        csv_file, x_index_click, y_index_click, x_range, y_range
+	    )
+	
+	
+	@app.callback(
+	    Output("spectrum-pixel-graph-2", "figure"),
+	    [
+	        Input("csv-dropdown", "value"),
+	        Input("x-index-dropdown", "value"),
+	        Input("y-index-dropdown", "value"),
+	        Input("x-axis-slider", "value"),
+	        Input("y-axis-slider", "value"),
+	    ],
+	)
+	def update_spectrum_pixel_graph(csv_file, x_index, y_index, x_range, y_range):
+	    return update_spectrum_pixel(csv_file, x_index, y_index, x_range, y_range)
+	
+	
+	@app.callback(
+	    [
+	        Output("x-axis-slider", "value"),
+	        Output("x-axis-slider", "max"),
+	        Output("y-axis-slider", "value"),
+	        Output("y-axis-slider", "max"),
+	    ],
+	    [Input("csv-dropdown", "value")],
+	)
+	def update_slider_values(csv_file):
+	    _, _, x_range, y_range = csv2df[csv_file]
+	    if "Cs137" in csv_file:
+	        # x_range = [0, 1499]
+	        # y_range = [0, 100]
+	        x_max, y_max = 1499, 200
+	    elif "Am241" in csv_file:
+	        # x_range = [0, 199]
+	        # y_range = [0, 60]
+	        x_max, y_max = 199, 80
+	    else:
+	        # x_range = [0, 1499]
+	        # y_range = [0, 100]
+	        x_max, y_max = 1499, 200
+	
+	    return x_range, x_range[1], y_range, y_range[1]
+		
+	return app
+	
 if __name__ == "__main__":
-    app.run_server(debug=True, port=8055, use_reloader=True)
+	app = main()
+	app.run_server(debug=True, port=8080, use_reloader=True)
