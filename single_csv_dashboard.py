@@ -25,7 +25,7 @@ def find_csv_files(directory):
     return csv_files
 
 # directory = r"Y:\M2766\R&D\Jira-RD-748" # Yuxin's data
-directory = r"C:\Users\johnk\Projects-code\WORK\H3D-app-deploy\data\leaky_pixel_data"
+directory = r"data\leaky_pixel_data"
 # directory = r"Z:\R&D\Personal\JohnF\H3D_MAPPER-DATA\Varying Source Height Test Data - No Mask"
 # directory = r"Y:\M2766\R&D\Jira-RD-748\M10710_REF_EC2409_Thresh_117-132_Test3"
 csv_files = find_csv_files(directory)
