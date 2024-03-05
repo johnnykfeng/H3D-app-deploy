@@ -1,7 +1,7 @@
-from single_csv_dashboard import main
+from single_csv_dashboard import create_app
 
 if __name__ == "__main__":
-	app = main()
-	# app.run_server(debug=True, port=8080, use_reloader=False)
+	app = create_app()
+	# use host='0.0.0.0' and port=8080 to run the app on Replit
 	app.run_server(debug=True, host='0.0.0.0', port=8080, use_reloader=False)
 	
