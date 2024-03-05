@@ -13,8 +13,8 @@ sys.path.append(project_root_dir)
 from Extract_module import ExtractModule, OrganizeData, extract_metadata_list
 
 # csv_file = r"data_analysis\Co57_2mins_2000V_20cycles.xlsx"
-csv_file = r"data\Co57_2mins_2000V_20cycles.csv"
-# csv_file = r"data_analysis\Co57_2mins_2000V_20cycles_yaxis.csv"
+# csv_file = r"data_analysis\Co57_2mins_2000V_20cycles.csv"
+csv_file = r"data\\Co57_2mins_2000V_20cycles_yaxis.csv"
 EM = ExtractModule(csv_file)
 df_transformed_list = EM.transform_all_df()
 organized_data = OrganizeData(df_transformed_list, EM.csv_file)
@@ -39,42 +39,45 @@ def calculate_peak_count(array: np.array, peak_bin: int, peak_halfwidth=25):
 peak_bin = 224
 peak_halfwidth = 25
 
-for keys, values in all_data_dict.items():
-    # print(f"{keys = }")
-    df = values["df"]
+# calculate the peak count for each pixel and add the dataframe to all_data_dict
+for counter, all_data in all_data_dict.items():
+    # print(f"{counter = }")
+    df = all_data["df"]
     # create a new column for the peak count of each pixel
     df["peak_count"] = df["array_bins"].apply(
         lambda x: calculate_peak_count(x, peak_bin=peak_bin)
     )
+    avg_peak_count = round(df["peak_count"].mean(), 1)
     heatmap_peak_count = df.pivot_table(
         index="y_index", columns="x_index", values="peak_count"
     )
-    all_data_dict[keys]["df"] = df
-    all_data_dict[keys]["heatmap_peak"] = heatmap_peak_count
+    all_data_dict[counter]["df"] = df
+    all_data_dict[counter]["avg_peak_counts"] = avg_peak_count
+    all_data_dict[counter]["heatmap_peak"] = heatmap_peak_count
 
 
-def update_heatmap(test_counter, heatmap_type):
-    stage_x = x_positions[test_counter]
-    stage_y = y_positions[test_counter]
+def update_heatmap(counter, heatmap_type):
+    stage_x = x_positions[counter]
+    stage_y = y_positions[counter]
 
-    if heatmap_type == "total_counts":
-        heatmap_table = all_data_dict[test_counter]["heatmap_table"]
-    elif heatmap_type == "peak_counts":
-        heatmap_table = all_data_dict[test_counter]["heatmap_peak"]
+    if heatmap_type == "total_count":
+        heatmap_table = all_data_dict[counter]["heatmap_table"]
+    elif heatmap_type == "peak_count":
+        heatmap_table = all_data_dict[counter]["heatmap_peak"]
     elif heatmap_type == "total_normalized":
-        heatmap_table = all_data_dict[test_counter]["heatmap_table"]
+        heatmap_table = all_data_dict[counter]["heatmap_table"]
         max_pixel_value = heatmap_table.values.max()
         heatmap_table = (heatmap_table / max_pixel_value).round(2)
     elif heatmap_type == "peak_normalized":
-        heatmap_table = all_data_dict[test_counter]["heatmap_peak"]
+        heatmap_table = all_data_dict[counter]["heatmap_peak"]
         max_pixel_value = heatmap_table.values.max()
         heatmap_table = (heatmap_table / max_pixel_value).round(2)
     else:
-        heatmap_table = all_data_dict[test_counter]["heatmap_peak"]
+        heatmap_table = all_data_dict[counter]["heatmap_peak"]
 
     title_string = f"""Stage X: {stage_x}, Stage Y: {stage_y}, 
-    Sum all pixels: {all_data_dict[test_counter]['sum_total_counts']},
-    Max count: {all_data_dict[test_counter]['max_total_counts']}"""
+    Sum all pixels: {all_data_dict[counter]['sum_total_counts']},
+    Max count: {all_data_dict[counter]['max_total_counts']}"""
     heatmap_fig = px.imshow(
         heatmap_table,
         color_continuous_scale="viridis",
@@ -132,11 +135,11 @@ def update_axis_range(fig, x_range, y_range):
     return fig
 
 
-def update_heatmap_peak(test_counter, heatmap_type):
-    stage_x = x_positions[test_counter]
-    stage_y = y_positions[test_counter]
+def update_heatmap_peak(counter, heatmap_type):
+    stage_x = x_positions[counter]
+    stage_y = y_positions[counter]
 
-    heatmap_peak = all_data_dict[test_counter]["heatmap_peak"]
+    heatmap_peak = all_data_dict[counter]["heatmap_peak"]
 
     if heatmap_type == "total_counts_normalized":
         # normalize heatmap
@@ -144,8 +147,8 @@ def update_heatmap_peak(test_counter, heatmap_type):
         heatmap_peak = (heatmap_peak / max_pixel_value).round(3)
 
     title_string = f"""Stage X: {stage_x}, Stage Y: {stage_y}, 
-    Sum all pixels: {all_data_dict[test_counter]['sum_total_counts']},
-    Max count: {all_data_dict[test_counter]['max_total_counts']}"""
+    Sum all pixels: {all_data_dict[counter]['sum_total_counts']},
+    Max count: {all_data_dict[counter]['max_total_counts']}"""
     heatmap_fig = px.imshow(
         heatmap_peak,
         color_continuous_scale="viridis",
@@ -166,8 +169,8 @@ def update_heatmap_peak(test_counter, heatmap_type):
     return heatmap_fig
 
 
-def update_spectrum_avg(test_counter, x_range, y_range):
-    df = all_data_dict[test_counter]["df"]
+def update_spectrum_avg(counter, x_range, y_range):
+    df = all_data_dict[counter]["df"]
 
     summed_array_bins = np.sum(df["array_bins"].values, axis=0)
     avg_array_bins = summed_array_bins / len(df)
@@ -180,13 +183,11 @@ def update_spectrum_avg(test_counter, x_range, y_range):
             name="Spectrum avg of all pixels",
         )
     )
-    x_min = min(x_range)
-    x_max = max(x_range)
-    y_min = min(y_range)
-    y_max = max(y_range)
-    spectrum_avg_fig.update_xaxes(range=[x_min, x_max])
-    spectrum_avg_fig.update_yaxes(range=[y_min, y_max])
-    title_string = f"Avg all pixels, Avg total counts: {all_data_dict[test_counter]['avg_total_counts']}, Sum total counts: {all_data_dict[test_counter]['sum_total_counts']}"
+    
+    spectrum_avg_fig.update_xaxes(range=[x_range[0], x_range[-1]])
+    spectrum_avg_fig.update_yaxes(range=[y_range[0], y_range[-1]])
+    title_string = f"""Avg all pixels, Avg total counts: {all_data_dict[counter]['avg_total_counts']}, 
+Avg peak counts: {all_data_dict[counter]['avg_peak_counts']}"""
     spectrum_avg_fig.update_layout(
         title=title_string,
         xaxis_title="Bins",
@@ -200,13 +201,13 @@ def update_spectrum_avg(test_counter, x_range, y_range):
     return spectrum_avg_fig
 
 
-def update_spectrum_pixel(test_counter, x_idx, y_idx, x_range, y_range):
-    df = all_data_dict[test_counter]["df"]
+def update_spectrum_pixel(counter, x_idx, y_idx, x_range, y_range):
+    df = all_data_dict[counter]["df"]
 
     # filter of one pixel based on x and y index
     pixel_df = df[(df["x_index"] == x_idx) & (df["y_index"] == y_idx)]
 
-    pixel_total_counts = pixel_df["total_counts"].values[0]
+    pixel_total_counts = pixel_df["total_count"].values[0]
 
     pixel_peak_counts = pixel_df["peak_count"].values[0]
 
@@ -221,12 +222,9 @@ def update_spectrum_pixel(test_counter, x_idx, y_idx, x_range, y_range):
             name="Spectrum of pixel",
         )
     )
-    x_min = min(x_range)
-    x_max = max(x_range)
-    y_min = min(y_range)
-    y_max = max(y_range)
-    spectrum_pixel_fig.update_xaxes(range=[x_min, x_max])
-    spectrum_pixel_fig.update_yaxes(range=[y_min, y_max])
+
+    spectrum_pixel_fig.update_xaxes(range=[x_range[0], x_range[-1]])
+    spectrum_pixel_fig.update_yaxes(range=[y_range[0], y_range[-1]])
     title_string = f"Pixel (x={x_idx}, y={y_idx}), Total counts: {pixel_total_counts}, Peak counts: {pixel_peak_counts}"
     spectrum_pixel_fig.update_layout(
         title=title_string,
@@ -244,7 +242,7 @@ def update_spectrum_pixel(test_counter, x_idx, y_idx, x_range, y_range):
 
 
 app_defaults = {
-    "heatmap_type": "peak_counts",
+    "heatmap_type": "peak_count",
     "measurement_slider": 2,
     "click-x": 5,
     "click-y": 7,
@@ -268,7 +266,7 @@ app.layout = html.Div(
         #                 html.H1("Background - No Source"),
         #                 dcc.Graph(
         #                     id="heatmap-plot-0",
-        #                     figure=update_heatmap(0, "total_counts"),
+        #                     figure=update_heatmap(0, "total_count"),
         #                 ),
         #             ],
         #             style={"flex": 1},
@@ -279,7 +277,7 @@ app.layout = html.Div(
         #                 html.H1("Source Exposure - No Mask"),
         #                 dcc.Graph(
         #                     id="heatmap-plot-1",
-        #                     figure=update_heatmap(1, "total_counts"),
+        #                     figure=update_heatmap(1, "total_count"),
         #                 ),
         #             ],
         #             style={"flex": 1},
@@ -293,38 +291,39 @@ app.layout = html.Div(
         # ),
         # container for the interactive heatmap with sliders and spectrum plots
         # heatmap type radio buttons for selecting heatmap type
-        html.Div(
-            [
-                html.Label("Select Heatmap Type", style={"font-size": "24px"}),
-                dcc.RadioItems(
-                    id="heatmap-type-radio",
-                    options=[
-                        {"label": "Peak Counts", "value": "peak_counts"},
-                        {"label": "Peak Counts Normalized", "value": "peak_normalized"},
-                        {"label": "Total Counts", "value": "total_counts"},
-                        {"label": "Total Counts Normalized", "value": "total_normalized"}
-                    ],
-                    style={
-                        "display": "flex",
-                        "flex-direction": "column",
-                        "font-size": "20px",  # Adjust the font size as desired
-                        "margin-top": "20px",
-                    },
-                    value=app_defaults["heatmap_type"],
-                ),
-            ],
-            style={
-                "display": "inline-block",
-            },
-        ),
+      
         html.Div(
             [
                 # container for interactive heatmap and its slider
                 html.Div(
                     [
                         html.H1(
-                            "Varying Mask Positions with Source Exposure",
+                            "Moving Mask Measurement",
                         ),
+                        html.Div(
+                                    [
+                                        html.Label("Select Heatmap Display", style={"font-size": "24px"}),
+                                        dcc.RadioItems(
+                                            id="heatmap-type-radio",
+                                            options=[
+                                                {"label": "Peak Counts", "value": "peak_count"},
+                                                {"label": "Peak Counts Normalized", "value": "peak_normalized"},
+                                                {"label": "Total Counts", "value": "total_count"},
+                                                {"label": "Total Counts Normalized", "value": "total_normalized",},
+                                            ],
+                                            style={
+                                                "display": "flex",
+                                                "flex-direction": "column",
+                                                "font-size": "20px",  # Adjust the font size as desired
+                                                "margin-top": "20px",
+                                            },
+                                            value=app_defaults["heatmap_type"],
+                                        ),
+                                    ],
+                                    style={
+                                        "display": "inline-block",
+                                    },
+                                ),
                         html.Div(
                             [
                                 dcc.Graph(
@@ -341,7 +340,7 @@ app.layout = html.Div(
                                     ),
                                 )
                             ],
-                            id="heatmap-container",
+                            id="heatmap-dynamic-container",
                             style={
                                 "width": "80%",
                                 "margin-top": "20px",
@@ -355,7 +354,9 @@ app.layout = html.Div(
                                     id="heatmap-slider",
                                     min=0,
                                     max=N_MODULES - 1,
-                                    value=app_defaults["measurement_slider"],  # start from the second heatmap
+                                    value=app_defaults[
+                                        "measurement_slider"
+                                    ],  # start from the second heatmap
                                     marks={str(i): str(i) for i in range(0, N_MODULES)},
                                     step=1,
                                 ),
@@ -365,18 +366,19 @@ app.layout = html.Div(
                             },
                         ),
                     ],
-                    style={"flex": 1, "margin-top": "150px", "margin-left": "40px"},
+                    style={"flex": 1, "margin-top": "100px", "margin-left": "40px"},
                 ),
                 # spectrum plots container -- per pixel and avg
                 html.Div(
                     [
                         html.H1("Spectrum Plots"),
                         html.Div(
-                            [dcc.Graph(id="spectrum-avg")], id="spectrum-avg-container"
+                            [dcc.Graph(id="spectrum-avg-figure")],
+                            id="spectrum-avg-container",
                         ),
                         html.Div(
-                            [dcc.Graph(id="spectrum-pixel_1")],
-                            id="spectrum-pixel-graph1",
+                            [dcc.Graph(id="spectrum-pixel-1-figure")],
+                            id="spectrum-pixel-1-container",
                         ),
                         # container for the spectrum of pixel plot -- includes dropdown menus
                         html.Div(
@@ -425,8 +427,8 @@ app.layout = html.Div(
                                     style={"display": "inline-block"},
                                 ),
                                 html.Div(
-                                    [dcc.Graph(id="spectrum-pixel-2")],
-                                    id="spectrum-pixel-graph2",
+                                    [dcc.Graph(id="spectrum-pixel-2-figure")],
+                                    id="spectrum-pixel-2-container",
                                 ),
                             ],
                         ),
@@ -435,7 +437,7 @@ app.layout = html.Div(
                             [
                                 html.Label("X"),
                                 dcc.RangeSlider(
-                                    min=0,
+                                    min=1,
                                     max=1999,
                                     value=app_defaults["x_range"],
                                     id="x-axis-slider",
@@ -475,7 +477,6 @@ app.layout = html.Div(
 
 # callback function for heatmaps based on slider and dropdown menu
 @app.callback(
-    # Output("heatmap-container", "children"),
     Output("heatmap-dynamic-figure", "figure"),
     [
         Input("heatmap-slider", "value"),
@@ -487,7 +488,7 @@ def update_dynamic_heatmaps(slider_value, heatmap_type):
 
 
 @app.callback(
-    Output("spectrum-avg", "figure"),
+    Output("spectrum-avg-figure", "figure"),
     [
         Input("heatmap-slider", "value"),
         Input("x-axis-slider", "value"),
@@ -499,7 +500,7 @@ def update_spectrum_avg_callback(slider_value, x_range, y_range):
 
 
 @app.callback(
-    Output("spectrum-pixel_1", "figure"),
+    Output("spectrum-pixel-1-figure", "figure"),
     [
         Input("heatmap-slider", "value"),
         Input("x-index-dropdown", "value"),
@@ -513,7 +514,7 @@ def update_spectrum_pixel_callback(slider_value, x_index, y_index, x_range, y_ra
 
 
 @app.callback(
-    Output("spectrum-pixel-2", "figure"),
+    Output("spectrum-pixel-2-figure", "figure"),
     [
         Input("heatmap-slider", "value"),
         Input("heatmap-dynamic-figure", "clickData"),

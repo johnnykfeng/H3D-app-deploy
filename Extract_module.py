@@ -185,9 +185,9 @@ class ExtractModule:
 
         df_new['array_bins'] = df_bins.apply(lambda row: np.array(row), axis=1)
 
-        df_new['total_counts'] = df_new['array_bins'].apply(sum)
-        df_new['total_counts'] = df_new['total_counts'].astype(int)
-        df_new['total_counts_norm'] = round(df_new['total_counts'] / df_new['total_counts'].max(), 3)
+        df_new['total_count'] = df_new['array_bins'].apply(sum)
+        df_new['total_count'] = df_new['total_count'].astype(int)
+        df_new['total_counts_norm'] = round(df_new['total_count'] / df_new['total_count'].max(), 3)
         df_new['is_edge'] = (df_new['x_index'] == 1) | \
                                 (df_new['x_index'] == 11) | \
                                     (df_new['y_index'] == 1) | \
@@ -315,11 +315,11 @@ class OrganizeData:
 
         for i, df in enumerate(self.df_transformed_list):
             heatmap_table = df.pivot_table(
-                index="y_index", columns="x_index", values="total_counts"
+                index="y_index", columns="x_index", values="total_count"
             )
-            max_total_counts = df["total_counts"].max()
-            sum_total_counts = df["total_counts"].sum()
-            avg_total_counts = round(df["total_counts"].mean(), 1)
+            max_total_counts = df["total_count"].max()
+            sum_total_counts = df["total_count"].sum()
+            avg_total_counts = round(df["total_count"].mean(), 1)
             edge_pixels_df = df[df["is_edge"] == True]
             interior_pixels_df = df[df["is_edge"] == False]
             all_data_dict[i] = {
@@ -353,7 +353,7 @@ class OrganizeData:
                 for i in range(2, self.N_MODULES):
                     df = self.all_data_dict[i]["df"]
                     pixel_df = df[(df["x_index"] == x_idx) & (df["y_index"] == y_idx)]
-                    pixel_total_counts = pixel_df["total_counts"].values[0]
+                    pixel_total_counts = pixel_df["total_count"].values[0]
                     pixel_total_counts_list.append(pixel_total_counts)
                     if if_calculate_peak_count:
                         peak_count = pixel_df["peak_count"].max()
