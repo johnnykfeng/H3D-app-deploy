@@ -72,7 +72,7 @@ def extract_csv2df(csv_file, module_number=0):
             bin_peak = PF.find_max_bin()
             starting_x_range = [0, 1499]
 
-        df["peak_counts"] = df["array_bins"].apply(
+        df["peak_count"] = df["array_bins"].apply(
             lambda x: calculate_peak_count(x, bin_peak)
         )
         starting_y_range = [0, max_count_value]
@@ -84,7 +84,7 @@ def extract_csv2df(csv_file, module_number=0):
         # bin_peak = PF.find_peaks_scipy()
         bin_peak = PF.find_max_bin()
         # bin_peak = 90
-        df["peak_counts"] = df["array_bins"].apply(
+        df["peak_count"] = df["array_bins"].apply(
             lambda x: calculate_peak_count(x, bin_peak)
         )
         starting_x_range = [0, 199]
@@ -97,7 +97,7 @@ def extract_csv2df(csv_file, module_number=0):
         PF.source_peak_bins["cs137"] = 1395
         # bin_peak = PF.find_peaks_scipy()
         bin_peak = PF.find_max_bin()
-        df["peak_counts"] = df["array_bins"].apply(
+        df["peak_count"] = df["array_bins"].apply(
             lambda x: calculate_peak_count(x, bin_peak)
         )
         starting_x_range = [0, 1999]
@@ -126,11 +126,11 @@ def update_heatmap(csv_file, count_type="peak_counts"):
     df, bin_peak, _, _ = csv2df[csv_file]
     if count_type == "total_counts":
         heatmap_table = df.pivot_table(
-            index="y_index", columns="x_index", values="total_counts"
+            index="y_index", columns="x_index", values="total_count"
         )
     else:
         heatmap_table = df.pivot_table(
-            index="y_index", columns="x_index", values="peak_counts"
+            index="y_index", columns="x_index", values="peak_count"
         )
 
     heatmap_fig = px.imshow(
@@ -223,7 +223,7 @@ def update_spectrum_pixel(csv_file, x_index, y_index, x_range, y_range):
 
     df, bin_peak, _, _ = csv2df[csv_file]
     pixel_df = df[(df["x_index"] == x_index) & (df["y_index"] == y_index)]
-    peak_count = pixel_df["peak_counts"].values[0]
+    peak_count = pixel_df["peak_count"].values[0]
     array_bins = pixel_df["array_bins"].values[0]
 
     fig = go.Figure()
@@ -266,7 +266,7 @@ def create_app():
                             {"label": "Peak Counts", "value": "peak_counts"},
                             {"label": "Total Counts", "value": "total_counts"},
                         ],
-                        value="total_counts",
+                        value="total_count",
                         labelStyle={"display": "inline-block"},
                     ),
                     dcc.Graph(
