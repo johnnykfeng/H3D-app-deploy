@@ -72,9 +72,13 @@ def extract_csv2df(csv_file, module_number=0):
             bin_peak = PF.find_max_bin()
             starting_x_range = [0, 1499]
 
-        df["peak_count"] = df["array_bins"].apply(
-            lambda x: calculate_peak_count(x, bin_peak)
+        df["peak_count"] = (
+            df["array_bins"]
+            .apply(lambda x: calculate_peak_count(x, bin_peak))
+            .astype(int)
         )
+
+        df["non_peak_count"] = df["total_count"] - df["peak_count"]
         starting_y_range = [0, max_count_value]
 
     elif "Am241" in filename_no_ext:
@@ -87,6 +91,7 @@ def extract_csv2df(csv_file, module_number=0):
         df["peak_count"] = df["array_bins"].apply(
             lambda x: calculate_peak_count(x, bin_peak)
         )
+        df["non_peak_count"] = df["total_count"] - df["peak_count"]
         starting_x_range = [0, 199]
         starting_y_range = [0, max_count_value]
 
@@ -100,6 +105,7 @@ def extract_csv2df(csv_file, module_number=0):
         df["peak_count"] = df["array_bins"].apply(
             lambda x: calculate_peak_count(x, bin_peak)
         )
+        df["non_peak_count"] = df["total_count"] - df["peak_count"]
         starting_x_range = [0, 1999]
         starting_y_range = [0, max_count_value]
 
@@ -116,29 +122,44 @@ for csv_file in csv_files:
     csv2df[csv_file] = (df, bin_peak, starting_x_range, starting_y_range)
 
 
-def update_heatmap(csv_file, count_type="peak_counts"):
-    # ic(csv_file)
+def update_heatmap(
+    csv_file, count_type="peak_counts", normalization="raw", color_scale="viridis"
+):
     filename = os.path.basename(csv_file)
-    # ic(filename)
     filename_no_ext = os.path.splitext(filename)[0]
-    # ic(filename_no_ext)
 
     df, bin_peak, _, _ = csv2df[csv_file]
     if count_type == "total_counts":
         heatmap_table = df.pivot_table(
             index="y_index", columns="x_index", values="total_count"
         )
+    elif count_type == "peak_counts":
+        heatmap_table = df.pivot_table(
+            index="y_index", columns="x_index", values="peak_count"
+        )
+    elif count_type == "non_peak_counts":
+        heatmap_table = df.pivot_table(
+            index="y_index", columns="x_index", values="non_peak_count"
+        )
+    elif count_type == "pixel_id":
+        heatmap_table = df.pivot_table(
+            index="y_index", columns="x_index", values="pixel_id"
+        )
     else:
         heatmap_table = df.pivot_table(
             index="y_index", columns="x_index", values="peak_count"
         )
 
+    if normalization == "normalized":
+        max_pixel_value = heatmap_table.values.max()
+        heatmap_table = (heatmap_table / max_pixel_value).round(2)
+
     heatmap_fig = px.imshow(
         heatmap_table,
-        color_continuous_scale="viridis",
+        color_continuous_scale=color_scale,
         text_auto=True,
         labels=dict(color="Value", x="X", y="Y"),
-        title=f"Heatmap_of_{filename_no_ext}_{count_type}",
+        title=f"Heatmap of {filename_no_ext}",
     )
 
     heatmap_fig.update_layout(
@@ -217,33 +238,54 @@ def update_spectrum_avg(csv_file, x_range, y_range):
     return fig
 
 
-def update_spectrum_pixel(csv_file, x_index, y_index, x_range, y_range):
+# def update_spectrum_pixel(csv_file, x_index, y_index, x_range, y_range):
+def update_spectrum_pixel(csv_file, x_range, y_range, *args):
     filename = os.path.basename(csv_file)
     filename_no_ext = os.path.splitext(filename)[0]
-
     df, bin_peak, _, _ = csv2df[csv_file]
-    pixel_df = df[(df["x_index"] == x_index) & (df["y_index"] == y_index)]
-    peak_count = pixel_df["peak_count"].values[0]
-    array_bins = pixel_df["array_bins"].values[0]
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=np.arange(1, len(array_bins) + 1), y=array_bins))
 
-    fig = add_peak_lines(fig, bin_peak, max(array_bins))
+    ic(args)
+    ic(len(args))
+    for arg in args:
+        if isinstance(arg, tuple):
+            x_index, y_index = arg
+            ic(x_index, y_index)
+
+        if (x_index is not None) and (y_index is not None):
+            pixel_df = df[(df["x_index"] == x_index) & (df["y_index"] == y_index)]
+            # peak_count = pixel_df["peak_count"].values[0]
+            array_bins = pixel_df["array_bins"].values[0]
+            fig.add_trace(
+                go.Scatter(
+                    x=np.arange(1, len(array_bins) + 1),
+                    y=array_bins,
+                    name=f"Pixel ({x_index}, {y_index})",
+                )
+            )
+            fig = add_peak_lines(fig, bin_peak, max(array_bins))
+
     fig = update_axis_range(fig, x_range, y_range)
 
     fig.update_layout(
-        title=f"Pixel ({x_index}, {y_index}), Peak count = {peak_count}",
+        # title=f"Pixel ({x_index}, {y_index}), Peak count = {peak_count}",
         xaxis_title="Bin Index",
         yaxis_title="Counts",
         width=700,
         height=350,
     )
+    total_count = pixel_df["total_count"].values[0]
+    peak_count = pixel_df["peak_count"].values[0]
+    if len(args) == 1:
+        fig.update_layout(
+            title=f"Pixel ({x_index}, {y_index}), Total count = {total_count}, Peak count = {peak_count}",
+        )
+
     return fig
 
 
 def create_app():
-
     app = dash.Dash(__name__)
 
     app.layout = html.Div(
@@ -260,14 +302,63 @@ def create_app():
                         value=csv_files[0],
                         style={"width": "80%"},
                     ),
-                    dcc.RadioItems(
-                        id="count-type",
-                        options=[
-                            {"label": "Peak Counts", "value": "peak_counts"},
-                            {"label": "Total Counts", "value": "total_counts"},
+                    html.Div(
+                        [
+                            dcc.RadioItems(
+                                id="count-type",
+                                options=[
+                                    {"label": "Peak Counts", "value": "peak_counts"},
+                                    {"label": "Total Counts", "value": "total_counts"},
+                                    {
+                                        "label": "Non-Peak Counts",
+                                        "value": "non_peak_counts",
+                                    },
+                                    {"label": "Pixel ID", "value": "pixel_id"},
+                                ],
+                                value="peak_counts",
+                                style={
+                                    "display": "flex",
+                                    "flex-direction": "column",
+                                    "font-size": "20px",  # Adjust the font size as desired
+                                    "margin-top": "20px",
+                                    "margin-left": "20px",
+                                    "margin-bottom": "20px",
+                                },
+                                # labelStyle={"display": "inline-block"},
+                            ),
+                            dcc.RadioItems(
+                                id="normalization-buttons",
+                                options=[
+                                    {"label": "Raw Counts", "value": "raw"},
+                                    {"label": "Normalized", "value": "normalized"},
+                                ],
+                                value="raw",
+                                style={
+                                    "display": "flex",
+                                    "flex-direction": "column",
+                                    "font-size": "20px",  # Adjust the font size as desired
+                                    "margin-top": "20px",
+                                },
+                            ),
+                            dcc.RadioItems(
+                                id="color-scale",
+                                options=[
+                                    {"label": "Viridis", "value": "viridis"},
+                                    {"label": "Plasma", "value": "plasma"},
+                                    {"label": "Inferno", "value": "inferno"},
+                                    {"label": "Jet", "value": "jet"},
+                                ],
+                                value="viridis",
+                                style={
+                                    "display": "flex",
+                                    "flex-direction": "column",
+                                    "font-size": "20px",  # Adjust the font size as desired
+                                    "margin-top": "20px",
+                                    "margin-left": "20px",
+                                },
+                            ),
                         ],
-                        value="total_count",
-                        labelStyle={"display": "inline-block"},
+                        style={"display": "flex", "flex-direction": "row"},
                     ),
                     dcc.Graph(
                         id="heatmap-graph",
@@ -288,26 +379,75 @@ def create_app():
                     # dcc.Input(id="x-index", type="number", value=1),
                     html.Div(
                         [
-                            html.Label("X -  "),
+                            html.Label("X-1 = "),
                             dcc.Dropdown(
-                                id="x-index-dropdown",
+                                id="x-index-dropdown-1",
                                 options=[
                                     {"label": str(i), "value": i} for i in range(1, 12)
                                 ],
                                 value=9,
-                                style={"width": "40%"},
+                                style={"margin-right": "20px"},
                             ),
-                            html.Label("Y -  "),
+                            html.Label("X-2 = "),
                             dcc.Dropdown(
-                                id="y-index-dropdown",
+                                id="x-index-dropdown-2",
                                 options=[
                                     {"label": str(i), "value": i} for i in range(1, 12)
                                 ],
                                 value=3,
-                                style={"width": "40%"},
+                                style={"margin-right": "20px"},
+                            ),
+                            html.Label("X-3 = "),
+                            dcc.Dropdown(
+                                id="x-index-dropdown-3",
+                                options=[
+                                    {"label": str(i), "value": i} for i in range(1, 12)
+                                ],
+                                value=9,
+                                style={"margin-right": "20px"},
                             ),
                         ],
-                        style={"display": "flex", "flex-direction": "row"},
+                        style={
+                            "display": "flex",
+                            "flex-direction": "row",
+                            "margin-left": "40px",
+                        },
+                    ),
+                    html.Div(
+                        [
+                            html.Label("Y-1 = "),
+                            dcc.Dropdown(
+                                id="y-index-dropdown-1",
+                                options=[
+                                    {"label": str(i), "value": i} for i in range(1, 12)
+                                ],
+                                value=6,
+                                style={"margin-right": "20px"},
+                            ),
+                            html.Label("Y-2 = "),
+                            dcc.Dropdown(
+                                id="y-index-dropdown-2",
+                                options=[
+                                    {"label": str(i), "value": i} for i in range(1, 12)
+                                ],
+                                value=8,
+                                style={"margin-right": "20px"},
+                            ),
+                            html.Label("Y-3 = "),
+                            dcc.Dropdown(
+                                id="y-index-dropdown-3",
+                                options=[
+                                    {"label": str(i), "value": i} for i in range(1, 12)
+                                ],
+                                value=3,
+                                style={"margin-right": "20px"},
+                            ),
+                        ],
+                        style={
+                            "display": "flex",
+                            "flex-direction": "row",
+                            "margin-left": "40px",
+                        },
                     ),
                     dcc.Graph(id="spectrum-pixel-graph-2"),
                     # bins range slider (x-axis)
@@ -351,10 +491,15 @@ def create_app():
 
     @app.callback(
         Output("heatmap-graph", "figure"),
-        [Input("csv-dropdown", "value"), Input("count-type", "value")],
+        [
+            Input("csv-dropdown", "value"),
+            Input("count-type", "value"),
+            Input("normalization-buttons", "value"),
+            Input("color-scale", "value"),
+        ],
     )
-    def update_heatmap_graph(csv_file, count_type):
-        return update_heatmap(csv_file, count_type)
+    def update_heatmap_graph(csv_file, count_type, normalization, color_scale):
+        return update_heatmap(csv_file, count_type, normalization, color_scale)
 
     @app.callback(
         Output("spectrum-avg-graph", "figure"),
@@ -371,12 +516,12 @@ def create_app():
         Output("spectrum-pixel-graph-1", "figure"),
         [
             Input("csv-dropdown", "value"),
-            Input("heatmap-graph", "clickData"),
             Input("x-axis-slider", "value"),
             Input("y-axis-slider", "value"),
+            Input("heatmap-graph", "clickData"),
         ],
     )
-    def update_spectrum_pixel_graph(csv_file, clickData, x_range, y_range):
+    def update_spectrum_pixel_graph(csv_file, x_range, y_range, clickData):
         # print(f"{clickData = }")
         # ic(clickData)
         x_index_click = clickData["points"][0]["x"]
@@ -384,21 +529,42 @@ def create_app():
         # print(f"{x_index_click = }, {y_index_click = }")
         ic(x_index_click, y_index_click)
         return update_spectrum_pixel(
-            csv_file, x_index_click, y_index_click, x_range, y_range
+            csv_file, x_range, y_range, (x_index_click, y_index_click)
         )
 
     @app.callback(
         Output("spectrum-pixel-graph-2", "figure"),
         [
             Input("csv-dropdown", "value"),
-            Input("x-index-dropdown", "value"),
-            Input("y-index-dropdown", "value"),
             Input("x-axis-slider", "value"),
             Input("y-axis-slider", "value"),
+            Input("x-index-dropdown-1", "value"),
+            Input("y-index-dropdown-1", "value"),
+            Input("x-index-dropdown-2", "value"),
+            Input("y-index-dropdown-2", "value"),
+            Input("x-index-dropdown-3", "value"),
+            Input("y-index-dropdown-3", "value"),
         ],
     )
-    def update_spectrum_pixel_graph(csv_file, x_index, y_index, x_range, y_range):
-        return update_spectrum_pixel(csv_file, x_index, y_index, x_range, y_range)
+    def update_spectrum_pixel_graph(
+        csv_file,
+        x_range,
+        y_range,
+        x_index_dropdown_1,
+        y_index_dropdown_1,
+        x_index_dropdown_2,
+        y_index_dropdown_2,
+        x_index_dropdown_3,
+        y_index_dropdown_3,
+    ):
+        return update_spectrum_pixel(
+            csv_file,
+            x_range,
+            y_range,
+            (x_index_dropdown_1, y_index_dropdown_1),
+            (x_index_dropdown_2, y_index_dropdown_2),
+            (x_index_dropdown_3, y_index_dropdown_3),
+        )
 
     @app.callback(
         [
@@ -411,13 +577,6 @@ def create_app():
     )
     def update_slider_values(csv_file):
         _, _, x_range, y_range = csv2df[csv_file]
-        if "Cs137" in csv_file:
-            x_max, y_max = 1499, 200
-        elif "Am241" in csv_file:
-            x_max, y_max = 199, 80
-        else:
-            x_max, y_max = 1499, 200
-
         return x_range, x_range[1], y_range, y_range[1]
 
     return app
