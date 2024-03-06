@@ -182,7 +182,7 @@ class ExtractModule:
         df_bins = df.iloc[:, :]
 
         df_new = df[['x_index', 'y_index']].copy()  # must use .copy(), pandas will give a warning
-
+        df_new['pixel_id'] = df_new.index
         df_new['array_bins'] = df_bins.apply(lambda row: np.array(row), axis=1)
 
         df_new['total_count'] = df_new['array_bins'].apply(sum)
