@@ -15,6 +15,8 @@ import os
 from icecream import ic
 from spectrum_peak_finder import PeakFinder
 
+print("+++++++++++ START PROGRAM +++++++++++")
+
 
 def find_csv_files(directory):
     """Find all CSV files in the given directory and its subdirectories"""
@@ -28,7 +30,7 @@ def find_csv_files(directory):
 
 directory = r"data/leaky_pixel_data"
 csv_files = find_csv_files(directory)
-ic(csv_files)
+# ic(csv_files)
 
 
 def calculate_peak_count(array: np.array, peak_bin: int, peak_halfwidth=25):
@@ -38,11 +40,8 @@ def calculate_peak_count(array: np.array, peak_bin: int, peak_halfwidth=25):
 
 
 def extract_csv2df(csv_file, module_number=0):
-    # ic(csv_file)
     filename = os.path.basename(csv_file)
-    # ic(filename)
     filename_no_ext = os.path.splitext(filename)[0]
-    # ic(filename_no_ext)
 
     EM = ExtractModule(csv_file)
     if csv_file.endswith("14892_M010710_20240208-1449__testresults.csv"):
@@ -54,21 +53,21 @@ def extract_csv2df(csv_file, module_number=0):
     df = EM.extract_module2df(module_number=module_number)
     df = EM.transform_df(df)
 
+    # used to determine the range of the y axis in spectrum plots
     max_count_value = df["array_bins"].apply(lambda x: max(x)).max()
+    # avg spectrum use to determine the bin_peak
     avg_array_bins = df["array_bins"].sum(axis=0) / 121
 
     if "Cs137" in filename_no_ext:
-        # ic("Cs137 data")
         if "Co57" in filename_no_ext:
+            ic("Co57 data")
             PF = PeakFinder(avg_array_bins, source="co57")
-            # bin_peak = PF.find_peaks_scipy()
             bin_peak = PF.find_max_bin()
             starting_x_range = [0, 1999]
         else:
             ic("Cs137 data")
             PF = PeakFinder(avg_array_bins, source="cs137")
             PF.source_peak_bins["cs137"] = 1395
-            # bin_peak = PF.find_peaks_scipy()
             bin_peak = PF.find_max_bin()
             starting_x_range = [0, 1499]
 
@@ -82,10 +81,9 @@ def extract_csv2df(csv_file, module_number=0):
         starting_y_range = [0, max_count_value]
 
     elif "Am241" in filename_no_ext:
-        # ic("Am241 data")
+        ic("Am241 data")
         PF = PeakFinder(avg_array_bins, source="am241")
         PF.source_peak_bins["am241"] = 75
-        # bin_peak = PF.find_peaks_scipy()
         bin_peak = PF.find_max_bin()
         # bin_peak = 90
         df["peak_count"] = df["array_bins"].apply(
@@ -96,17 +94,16 @@ def extract_csv2df(csv_file, module_number=0):
         starting_y_range = [0, max_count_value]
 
     else:
-        # ic("contains neither Cs137 nor Am241 data")
+        ic("contains neither Cs137 nor Am241 in filename")
         # use Cs137 as default
         PF = PeakFinder(avg_array_bins, source="cs137")
         PF.source_peak_bins["cs137"] = 1395
-        # bin_peak = PF.find_peaks_scipy()
         bin_peak = PF.find_max_bin()
         df["peak_count"] = df["array_bins"].apply(
             lambda x: calculate_peak_count(x, bin_peak)
         )
         df["non_peak_count"] = df["total_count"] - df["peak_count"]
-        starting_x_range = [0, 1999]
+        starting_x_range = [0, 1499]
         starting_y_range = [0, max_count_value]
 
     return df, bin_peak, starting_x_range, starting_y_range
@@ -115,7 +112,7 @@ def extract_csv2df(csv_file, module_number=0):
 csv2df = {}
 for csv_file in csv_files:
     filename = os.path.basename(csv_file)
-    ic(filename)
+    # ic(filename)
     df, bin_peak, starting_x_range, starting_y_range = extract_csv2df(
         csv_file, module_number=0
     )
@@ -302,7 +299,7 @@ def create_app():
                         value=csv_files[0],
                         style={"width": "80%"},
                     ),
-                    html.Div(
+                    html.Div(  # Radio buttons for heatmap
                         [
                             dcc.RadioItems(
                                 id="count-type",
@@ -359,7 +356,7 @@ def create_app():
                             ),
                         ],
                         style={"display": "flex", "flex-direction": "row"},
-                    ),
+                    ),  # End of radio buttons for heatmap
                     dcc.Graph(
                         id="heatmap-graph",
                         clickData=(
@@ -377,78 +374,98 @@ def create_app():
                     dcc.Graph(id="spectrum-avg-graph"),
                     dcc.Graph(id="spectrum-pixel-graph-1"),
                     # dcc.Input(id="x-index", type="number", value=1),
-                    html.Div(
+                    html.Div( # container for dropdowns
                         [
-                            html.Label("X-1 = "),
-                            dcc.Dropdown(
-                                id="x-index-dropdown-1",
-                                options=[
-                                    {"label": str(i), "value": i} for i in range(1, 12)
+                            html.Div( 
+                                [
+                                    html.Label("X-1 = "),
+                                    dcc.Dropdown(
+                                        id="x-index-dropdown-1",
+                                        options=[
+                                            {"label": str(i), "value": i}
+                                            for i in range(1, 12)
+                                        ],
+                                        value=9,
+                                        style={"margin-right": "20px"},
+                                    ),
+                                    html.Label("Y-1 = "),
+                                    dcc.Dropdown(
+                                        id="y-index-dropdown-1",
+                                        options=[
+                                            {"label": str(i), "value": i}
+                                            for i in range(1, 12)
+                                        ],
+                                        value=3,
+                                        style={"margin-right": "20px"},
+                                    ),
                                 ],
-                                value=9,
-                                style={"margin-right": "20px"},
+                                style={
+                                    "display": "flex",
+                                    "flex-direction": "column",
+                                    "margin-left": "40px",
+                                },
+                            ), 
+                            html.Div(
+                                [
+                                    html.Label("X-2 = "),
+                                    dcc.Dropdown(
+                                        id="x-index-dropdown-2",
+                                        options=[
+                                            {"label": str(i), "value": i}
+                                            for i in range(1, 12)
+                                        ],
+                                        value=8,
+                                        style={"margin-right": "20px"},
+                                    ),
+                                    html.Label("Y-2 = "),
+                                    dcc.Dropdown(
+                                        id="y-index-dropdown-2",
+                                        options=[
+                                            {"label": str(i), "value": i}
+                                            for i in range(1, 12)
+                                        ],
+                                        value=4,
+                                        style={"margin-right": "20px"},
+                                    ),
+                                ],
+                                style={
+                                    "display": "flex",
+                                    "flex-direction": "column",
+                                    "margin-left": "40px",
+                                },
                             ),
-                            html.Label("X-2 = "),
-                            dcc.Dropdown(
-                                id="x-index-dropdown-2",
-                                options=[
-                                    {"label": str(i), "value": i} for i in range(1, 12)
+                            html.Div(
+                                [
+                                    html.Label("X-3 = "),
+                                    dcc.Dropdown(
+                                        id="x-index-dropdown-3",
+                                        options=[
+                                            {"label": str(i), "value": i}
+                                            for i in range(1, 12)
+                                        ],
+                                        value=6,
+                                        style={"margin-right": "20px"},
+                                    ),
+                                    html.Label("Y-3 = "),
+                                    dcc.Dropdown(
+                                        id="y-index-dropdown-3",
+                                        options=[
+                                            {"label": str(i), "value": i}
+                                            for i in range(1, 12)
+                                        ],
+                                        value=8,
+                                        style={"margin-right": "20px"},
+                                    ),
                                 ],
-                                value=3,
-                                style={"margin-right": "20px"},
-                            ),
-                            html.Label("X-3 = "),
-                            dcc.Dropdown(
-                                id="x-index-dropdown-3",
-                                options=[
-                                    {"label": str(i), "value": i} for i in range(1, 12)
-                                ],
-                                value=9,
-                                style={"margin-right": "20px"},
+                                style={
+                                    "display": "flex",
+                                    "flex-direction": "column",
+                                    "margin-left": "40px",
+                                },
                             ),
                         ],
-                        style={
-                            "display": "flex",
-                            "flex-direction": "row",
-                            "margin-left": "40px",
-                        },
-                    ),
-                    html.Div(
-                        [
-                            html.Label("Y-1 = "),
-                            dcc.Dropdown(
-                                id="y-index-dropdown-1",
-                                options=[
-                                    {"label": str(i), "value": i} for i in range(1, 12)
-                                ],
-                                value=6,
-                                style={"margin-right": "20px"},
-                            ),
-                            html.Label("Y-2 = "),
-                            dcc.Dropdown(
-                                id="y-index-dropdown-2",
-                                options=[
-                                    {"label": str(i), "value": i} for i in range(1, 12)
-                                ],
-                                value=8,
-                                style={"margin-right": "20px"},
-                            ),
-                            html.Label("Y-3 = "),
-                            dcc.Dropdown(
-                                id="y-index-dropdown-3",
-                                options=[
-                                    {"label": str(i), "value": i} for i in range(1, 12)
-                                ],
-                                value=3,
-                                style={"margin-right": "20px"},
-                            ),
-                        ],
-                        style={
-                            "display": "flex",
-                            "flex-direction": "row",
-                            "margin-left": "40px",
-                        },
-                    ),
+                        style={"display": "flex", "flex-direction": "row"},
+                    ), # end of container for dropdowns
                     dcc.Graph(id="spectrum-pixel-graph-2"),
                     # bins range slider (x-axis)
                     html.Div(
