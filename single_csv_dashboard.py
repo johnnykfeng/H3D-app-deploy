@@ -223,6 +223,7 @@ def update_spectrum_avg(csv_file, x_range, y_range):
     df, bin_peak, _, _ = csv2df[csv_file]
     summed_array_bins = np.sum(df["array_bins"].values, axis=0)
     avg_array_bins = summed_array_bins / len(df)
+    avg_total_counts = np.sum(df["total_count"].values) / len(df)
     avg_peak_counts = calculate_peak_count(avg_array_bins, bin_peak)
 
     fig = go.Figure()
@@ -232,7 +233,7 @@ def update_spectrum_avg(csv_file, x_range, y_range):
     fig = update_axis_range(fig, x_range, y_range)
 
     fig.update_layout(
-        title=f"Average spectrum, Peak count = {avg_peak_counts:.1f} ",
+        title=f"Average spectrum, Total count= {avg_total_counts:.1f}, Peak count= {avg_peak_counts:.1f} ",
         xaxis_title="Bin Index",
         yaxis_title="Average Counts",
         width=700,
@@ -289,6 +290,22 @@ def update_spectrum_pixel(csv_file, x_range, y_range, *args):
     return fig
 
 
+app_defaults = {
+    "csv_index": 1,
+    "count_type": "peak_counts",
+    "normalization": "raw",
+    "color_scale": "viridis",
+    "x-click": 3,
+    "y-click": 3,
+    "x1-dropdown": 9,
+    "y1-dropdown": 3,
+    "x2-dropdown": 8,
+    "y2-dropdown": 4,
+    "x3-dropdown": 6,
+    "y3-dropdown": 8,
+}
+
+
 def create_app():
     app = dash.Dash(__name__)
 
@@ -297,14 +314,15 @@ def create_app():
             html.Div(
                 [
                     html.H2("Heatmap Dashboard"),
+                    html.Label("Select a data file:"),
                     dcc.Dropdown(
                         id="csv-dropdown",
                         options=[
                             {"label": os.path.basename(csv_file), "value": csv_file}
                             for csv_file in csv_files
                         ],
-                        value=csv_files[0],
-                        style={"width": "80%"},
+                        value=csv_files[app_defaults["csv_index"]],
+                        style={"width": "100%", "height": "50px", "font-size": "20px"},
                     ),
                     html.Div(  # Radio buttons for heatmap
                         [
@@ -380,7 +398,6 @@ def create_app():
                     html.H2("Spectrum Dashboard"),
                     dcc.Graph(id="spectrum-avg-graph"),
                     dcc.Graph(id="spectrum-pixel-graph-1"),
-                    # dcc.Input(id="x-index", type="number", value=1),
                     html.Div(  # container for dropdowns
                         [
                             html.Div(
@@ -523,6 +540,9 @@ def create_app():
         ],
     )
     def update_heatmap_graph(csv_file, count_type, normalization, color_scale):
+        ic(csv_file)
+        if csv_file is None:
+            csv_file = csv_files[app_defaults["csv_index"]]
         return update_heatmap(csv_file, count_type, normalization, color_scale)
 
     @app.callback(
@@ -534,6 +554,8 @@ def create_app():
         ],
     )
     def update_spectrum_avg_graph(csv_file, x_range, y_range):
+        if csv_file is None:
+            csv_file = csv_files[app_defaults["csv_index"]]
         return update_spectrum_avg(csv_file, x_range, y_range)
 
     @app.callback(
@@ -546,12 +568,11 @@ def create_app():
         ],
     )
     def update_spectrum_pixel_graph(csv_file, x_range, y_range, clickData):
-        # print(f"{clickData = }")
-        # ic(clickData)
         x_index_click = clickData["points"][0]["x"]
         y_index_click = clickData["points"][0]["y"]
-        # print(f"{x_index_click = }, {y_index_click = }")
         ic(x_index_click, y_index_click)
+        if csv_file is None:
+            csv_file = csv_files[app_defaults["csv_index"]]
         return update_spectrum_pixel(
             csv_file, x_range, y_range, (x_index_click, y_index_click)
         )
@@ -581,6 +602,8 @@ def create_app():
         x_index_dropdown_3,
         y_index_dropdown_3,
     ):
+        if csv_file is None:
+            csv_file = csv_files[app_defaults["csv_index"]]
         return update_spectrum_pixel(
             csv_file,
             x_range,
@@ -600,6 +623,8 @@ def create_app():
         [Input("csv-dropdown", "value")],
     )
     def update_slider_values(csv_file):
+        if csv_file is None:
+            csv_file = csv_files[app_defaults["csv_index"]]
         _, _, x_range, y_range = csv2df[csv_file]
         return x_range, x_range[1], y_range, y_range[1]
 
