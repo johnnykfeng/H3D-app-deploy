@@ -13,6 +13,42 @@ from Extract_module import ExtractModule
 
 # another approach is to create a peak finder class for each source
 
+class SimplePeakFinder:
+    def __init__(self, array: np.array, source: str):
+        if source.lower() not in ["am241", "co57", "cs137"]:
+            raise ValueError("Invalid source")
+        self.array = array
+        self.source = source.lower()  # other sources: "co57", "cs137"
+        self.source_peak_bins = {"am241": 90, "co57": 230, "cs137": 1492}
+        self.source_peak_keV = {"am241": 60, "co57": 122, "cs137": 662}
+        self.bin_range = None
+        self.bin_max = None
+        self.max_count = None
+
+    def crop_roi(self, crop_center, crop_width=40):
+        """Crop the array around region-of-interest ROI."""
+        self.bin_range = [crop_center - crop_width, crop_center + crop_width]
+        return self.array[self.bin_range[0] : self.bin_range[1]]
+
+    def find_bin_max(self):
+        """Find the bin with the most counts in the cropped array.
+        Assume that is the peak center"""
+        peak_bin_initial = self.source_peak_bins[self.source]
+        cropped_array = self.crop_roi(peak_bin_initial, crop_width=40)
+        self.max_count = np.max(cropped_array)
+        # add the extra offset to get the bin number in the full array
+        self.bin_max = np.argmax(cropped_array) + self.bin_range[0]
+        return self.bin_max
+
+    @staticmethod
+    def calculate_peak_count(array: np.array, peak_bin: int, peak_halfwidth=25):
+        """Calculate the counts in a peak given the array and the peak bin number."""
+        peak_count = np.sum(
+            array[peak_bin - peak_halfwidth : peak_bin + peak_halfwidth]
+        )
+        return peak_count
+
+
 class PeakFinder:
     def __init__(self, array: np.array, source: str, threshold=0.2, prominence=0.5):
         if source.lower() not in ["am241", "co57", "cs137"]:
@@ -37,8 +73,8 @@ class PeakFinder:
         bin_list = []
         for keys in self.source_peak_bins.keys():
             keV_list.append(self.source_peak_keV[keys])
-            bin_list.append(self.source_peak_bins[keys])   
-            
+            bin_list.append(self.source_peak_bins[keys])
+
         plt.figure("Calibrated peaks")
         i = 0
         for keV, bin in zip(keV_list, bin_list):
@@ -61,37 +97,36 @@ class PeakFinder:
         if show:
             plt.show()
 
-    # def crop_array(self, peak_bin, halfwidth=25):
-        # pass
-
     def crop_array(self, crop_width=40):
         ic(self.source)
         # ic(self.source_peak_bins)
         peak_bin_initial = self.source_peak_bins[self.source]
         self.x_range = [peak_bin_initial - crop_width, peak_bin_initial + crop_width]
 
-        return self.array[self.x_range[0]: self.x_range[1]]
+        return self.array[self.x_range[0] : self.x_range[1]]
 
     def find_max_bin(self):
-        cropped_array = self.crop_array()
+        cropped_array = self.crop_array(crop_width=40)
         self.array_max = np.max(cropped_array)
         self.bin_max = np.argmax(cropped_array) + self.x_range[0]
         return self.bin_max
-        
-    def find_peaks_scipy(self):
 
+    def find_peaks_scipy(self):
         cropped_array = self.crop_array()
-        
+
         cropped_peak_bin, self.properties = find_peaks(
-            cropped_array, threshold=self.threshold,
+            cropped_array,
+            threshold=self.threshold,
             # prominence=self.prominence
         )
-        
+
         self.array_max = np.max(cropped_array)
         self.bin_max = np.argmax(cropped_array) + self.x_range[0]
-        
+
         self.peak_bins = cropped_peak_bin + self.x_range[0]
-        self.peak_heights = [round(peak_height, 2) for peak_height in self.array[self.peak_bins]]
+        self.peak_heights = [
+            round(peak_height, 2) for peak_height in self.array[self.peak_bins]
+        ]
         ic(self.peak_bins, self.peak_heights, self.properties)
         # check if self.properties["left_bases"] and self.properties["right_bases"] exist
         if "left_bases" in self.properties and "right_bases" in self.properties:
@@ -100,9 +135,9 @@ class PeakFinder:
         else:
             self.left_base = None
             self.right_base = None
-        
+
         if len(self.peak_bins) == 0:
-            return self.bin_max 
+            return self.bin_max
         elif len(self.peak_bins) == 1:
             self.largest_peak_bin = self.peak_bins[0]
             return self.largest_peak_bin
@@ -121,7 +156,7 @@ class PeakFinder:
     def plot_array(self, show=True):
         plt.figure()
         plt.title = "Raw spectrum"
-        plt.plot(self.array, color = 'r')
+        plt.plot(self.array, color="r")
         plt.grid(visible=True, which="both", alpha=0.5)
         if show:
             plt.show()
@@ -131,8 +166,16 @@ class PeakFinder:
             self.find_peaks()
         plt.figure("Peak finder")
         plt.plot(self.array, label="Raw spectrum averaged over all pixels")
-        plt.plot(self.peak_bins, self.peak_heights, "s", label="Fitted peaks", alpha = 0.4)
-        plt.plot(self.largest_peak_bin, max(self.peak_heights), "x", label="Fitted largest peak", alpha=0.5)
+        plt.plot(
+            self.peak_bins, self.peak_heights, "s", label="Fitted peaks", alpha=0.4
+        )
+        plt.plot(
+            self.largest_peak_bin,
+            max(self.peak_heights),
+            "x",
+            label="Fitted largest peak",
+            alpha=0.5,
+        )
         plt.plot(self.bin_max, self.array_max, "o", label="Max bin", alpha=0.5)
         # plot vertical lines for the self.x_range[0] and self.x_range[1]
         plt.axvline(self.x_range[0], color="gray", linestyle="--", alpha=0.5)
@@ -155,7 +198,6 @@ class PeakFinder:
 
 
 if __name__ == "__main__":
-
     file_folder = r"data_analysis\\background_study\\"
     # filename = r"NoSourceB_5mins_Cs137.csv"
     filename = r"AmericiumB_5min_Cs137.csv"
@@ -178,7 +220,7 @@ if __name__ == "__main__":
     # PF = PeakFinder(avg_all_pixels, source="co57")
     PF = PeakFinder(avg_all_pixels, source="am241")
     # PF = PeakFinder(avg_all_pixels, threshold=0.1, source="Cs137")
-    
+
     # PF.plot_calibrated_peaks(show=False)
     # PF.plot_array(show=False)
     PF.find_peaks_scipy()
