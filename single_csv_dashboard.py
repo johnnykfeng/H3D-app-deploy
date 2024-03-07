@@ -10,7 +10,7 @@ import os
 # Add root directory to sys.path to import ExtractModule
 project_root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(project_root_dir)
-from Extract_module import ExtractModule
+from Extract_module import ExtractModule, TransformDf
 import os
 from icecream import ic
 from spectrum_peak_finder import PeakFinder
@@ -40,6 +40,11 @@ def calculate_peak_count(array: np.array, peak_bin: int, peak_halfwidth=25):
 
 
 def extract_csv2df(csv_file, module_number=0):
+    """
+    Extract and transform data from csv file to a pandas DataFrame.
+    module_number=0 for data from production tester
+    module_number=3 for data from quad-tester
+    """
     filename = os.path.basename(csv_file)
     filename_no_ext = os.path.splitext(filename)[0]
 
@@ -51,7 +56,8 @@ def extract_csv2df(csv_file, module_number=0):
         EM.target_string = "H3D_Pixel"
 
     df = EM.extract_module2df(module_number=module_number)
-    df = EM.transform_df(df)
+    TD = TransformDf()
+    df = TD.transform_df(df)
 
     # used to determine the range of the y axis in spectrum plots
     max_count_value = df["array_bins"].apply(lambda x: max(x)).max()
@@ -109,6 +115,7 @@ def extract_csv2df(csv_file, module_number=0):
     return df, bin_peak, starting_x_range, starting_y_range
 
 
+# Extract data from csv files and store in csv2df dictionary
 csv2df = {}
 for csv_file in csv_files:
     filename = os.path.basename(csv_file)
@@ -374,9 +381,9 @@ def create_app():
                     dcc.Graph(id="spectrum-avg-graph"),
                     dcc.Graph(id="spectrum-pixel-graph-1"),
                     # dcc.Input(id="x-index", type="number", value=1),
-                    html.Div( # container for dropdowns
+                    html.Div(  # container for dropdowns
                         [
-                            html.Div( 
+                            html.Div(
                                 [
                                     html.Label("X-1 = "),
                                     dcc.Dropdown(
@@ -404,7 +411,7 @@ def create_app():
                                     "flex-direction": "column",
                                     "margin-left": "40px",
                                 },
-                            ), 
+                            ),
                             html.Div(
                                 [
                                     html.Label("X-2 = "),
@@ -465,7 +472,7 @@ def create_app():
                             ),
                         ],
                         style={"display": "flex", "flex-direction": "row"},
-                    ), # end of container for dropdowns
+                    ),  # end of container for dropdowns
                     dcc.Graph(id="spectrum-pixel-graph-2"),
                     # bins range slider (x-axis)
                     html.Div(
