@@ -577,21 +577,21 @@ def create_app():
         [Input("color-range-slider", "value")],
     )
     def update_3d_surface_plot(figure, color_scale, color_range):
-        # Extract the data from the figure
+        # extract the data from the figure
         z_data = figure["data"][0]["z"]
 
-        # Create x and y coordinates
+        # create x and y coordinates
         x_data = list(range(len(z_data[0])))
         y_data = list(range(len(z_data)))
 
-        # Create a 3D surface plot with the selected colorscale
+        # create 3D surface plot with the selected colorscale
         plot_3d_fig = go.Figure(
             data=[go.Surface(x=x_data, y=y_data, z=z_data, colorscale=color_scale)]
         )
 
-        # Update the color range of the 3D plot based on the color range
+        # update color range of 3D plot
         plot_3d_fig.update_traces(cmin=color_range[0], cmax=color_range[1])
-        # Update the layout
+        # update plot layout
         plot_3d_fig.update_layout(
             title="3D Surface Plot",
             autosize=False,
@@ -684,6 +684,34 @@ def create_app():
             csv_file = csv_files[app_defaults["csv_index"]]
         _, _, x_range, y_range = csv2df[csv_file]
         return x_range, x_range[1], y_range, y_range[1]
+    
+    #callback to dynamically update the maximum value of slider based on max heatmap value
+    @app.callback(
+    Output('color-range-slider', 'max'),
+    [Input('heatmap-graph', 'figure')]
+)
+    def update_slider_max(figure):
+        # extract the data from the figure
+        z_data = figure['data'][0]['z']
+
+        # calculate the max value
+        max_value = np.max(z_data)
+
+        return max_value
+    
+    #callback to dynamically update the min value of slider based on min heatmap value
+    @app.callback(
+    Output('color-range-slider', 'min'),
+    [Input('heatmap-graph', 'figure')]
+)
+    def update_slider_min(figure):
+        # extract the data from the figure
+        z_data = figure['data'][0]['z']
+
+        # calculate the min value
+        min_value = np.min(z_data)
+
+        return min_value
 
     return app
 
