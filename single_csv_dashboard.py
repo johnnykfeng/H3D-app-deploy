@@ -127,10 +127,7 @@ for csv_file in csv_files:
 
 
 def update_heatmap(
-    csv_file,
-    count_type="peak_counts",
-    normalization="raw",
-    color_scale="viridis",upper_limit=500, lower_limit=300
+    csv_file, count_type="peak_counts", normalization="raw", color_scale="viridis"
 ):
     filename = os.path.basename(csv_file)
     filename_no_ext = os.path.splitext(filename)[0]
@@ -157,49 +154,17 @@ def update_heatmap(
             index="y_index", columns="x_index", values="peak_count"
         )
 
-    color_schemes = {
-    "viridis": px.colors.sequential.Viridis,
-    "plasma": px.colors.sequential.Plasma,
-    "inferno": px.colors.sequential.Inferno,
-    "jet": px.colors.sequential.Jet,
-}
-    
-    selected_color_scheme = "plasma"  # replace with the selected color scheme
-
     if normalization == "normalized":
         max_pixel_value = heatmap_table.values.max()
         heatmap_table = (heatmap_table / max_pixel_value).round(2)
-    else:
-        max_pixel_value = df["peak_count"].max()
-
-    colors = color_schemes[color_scale]  # Use the selected color scheme
-
-    custom_colorscale = [
-        [0, "white"],  # white  for values below the lower limit
-        [lower_limit / max_pixel_value, "white"],  # white  for values equal to
-        [
-            heatmap_table.values[heatmap_table.values >= lower_limit].min()
-            / max_pixel_value,
-            colors[0], 
-        ],  # ranging through the color scale for values between the limits
-        [
-            heatmap_table.values[heatmap_table.values <= upper_limit].max()
-            / max_pixel_value,
-            colors[-1], #using the last color
-        ],
-        [upper_limit / max_pixel_value, "black"],  # black  for  upper limit
-        [1, "black"],  # black for values above the upper limit
-    ]
-
 
     heatmap_fig = px.imshow(
         heatmap_table,
-        color_continuous_scale=custom_colorscale,
+        color_continuous_scale=color_scale,
         text_auto=True,
         labels=dict(color="Value", x="X", y="Y"),
         title=f"Heatmap of {filename_no_ext}",
     )
-    # Add a solid black color for values above the upper limit
 
     heatmap_fig.update_layout(
         xaxis=dict(title="X-index of Pixel"),
@@ -417,31 +382,6 @@ def create_app():
                         ],
                         style={"display": "flex", "flex-direction": "row"},
                     ),  # End of radio buttons for heatmap
-                    # Add Input components for upper_limit and lower_limit
-                    html.Div(
-                        [
-                            html.Label("Upper Limit:"),
-                            dcc.Input(
-                                id="upper-limit-input",
-                                type="number",
-                                value=500,
-                                style={"margin-right": "20px"},
-                            ),
-                            html.Label("Lower Limit:"),
-                            dcc.Input(
-                                id="lower-limit-input",
-                                type="number",
-                                value=300,
-                                style={"margin-right": "20px"},
-                            ),
-                        ],
-                        style={
-                            "display": "flex",
-                            "flex-direction": "row",
-                            "margin-left": "40px",
-                            "margin-bottom": "20px",
-                        },
-                    ),
                     dcc.Graph(
                         id="heatmap-graph",
                         clickData=(
@@ -597,15 +537,13 @@ def create_app():
             Input("count-type", "value"),
             Input("normalization-buttons", "value"),
             Input("color-scale", "value"),
-            Input("upper-limit-input", "value"),
-            Input("lower-limit-input", "value"),
         ],
     )
-    def update_heatmap_graph(csv_file, count_type, normalization, color_scale, upper_limit, lower_limit):
+    def update_heatmap_graph(csv_file, count_type, normalization, color_scale):
         ic(csv_file)
         if csv_file is None:
             csv_file = csv_files[app_defaults["csv_index"]]
-        return update_heatmap(csv_file, count_type, normalization, color_scale, upper_limit, lower_limit)
+        return update_heatmap(csv_file, count_type, normalization, color_scale)
 
     @app.callback(
         Output("spectrum-avg-graph", "figure"),
