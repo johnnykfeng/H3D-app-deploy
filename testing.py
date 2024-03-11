@@ -184,31 +184,33 @@ def update_heatmap(csv_file, count_type, normalization, color_scale, color_range
 
     return heatmap_fig
 
+
 def update_3d_surface(figure, color_scale, color_range):
     # extract the data from the figure
-        z_data = figure["data"][0]["z"]
+    z_data = figure["data"][0]["z"]
 
-        # create x and y coordinates
-        x_data = list(range(len(z_data[0])))
-        y_data = list(range(len(z_data)))
+    # create x and y coordinates
+    x_data = list(range(len(z_data[0])))
+    y_data = list(range(len(z_data)))
 
-        # create 3D surface plot with the selected colorscale
-        plot_3d_fig = go.Figure(
-            data=[go.Surface(x=x_data, y=y_data, z=z_data, colorscale=color_scale)]
-        )
+    # create 3D surface plot with the selected colorscale
+    plot_3d_fig = go.Figure(
+        data=[go.Surface(x=x_data, y=y_data, z=z_data, colorscale=color_scale)]
+    )
 
-        # update color range of 3D plot
-        plot_3d_fig.update_traces(cmin=color_range[0], cmax=color_range[1])
-        # update plot layout
-        plot_3d_fig.update_layout(
-            title="3D Surface Plot",
-            autosize=False,
-            width=800,
-            height=800,
-            margin=dict(l=65, r=50, b=65, t=90),
-        )
+    # update color range of 3D plot
+    plot_3d_fig.update_traces(cmin=color_range[0], cmax=color_range[1])
+    # update plot layout
+    plot_3d_fig.update_layout(
+        title="3D Surface Plot",
+        autosize=False,
+        width=700,
+        height=700,
+        margin=dict(l=65, r=50, b=65, t=90),
+    )
 
-        return plot_3d_fig
+    return plot_3d_fig
+
 
 def add_peak_lines(fig, bin_peak, max_y, peak_halfwidth=25):
     fig.add_shape(
@@ -534,7 +536,9 @@ def create_app():
                         ],
                         style={"display": "flex", "flex-direction": "row"},
                     ),  # end of container for dropdowns
-                    dcc.Graph(id="spectrum-pixel-graph-2"),
+                    dcc.Graph(
+                        id="spectrum-pixel-graph-2",
+                    ),
                     # bins range slider (x-axis)
                     html.Div(
                         [
@@ -548,6 +552,7 @@ def create_app():
                         ],
                         style={
                             "width": "70%",
+                            "margin": "0 auto",
                         },
                     ),
                     # counts range slider (y-axis)
@@ -563,6 +568,7 @@ def create_app():
                         ],
                         style={
                             "width": "70%",
+                            "margin": "0 auto",
                         },
                     ),
                 ],
@@ -686,29 +692,27 @@ def create_app():
             csv_file = csv_files[app_defaults["csv_index"]]
         _, _, x_range, y_range = csv2df[csv_file]
         return x_range, x_range[1], y_range, y_range[1]
-    
-    #callback to dynamically update the maximum value of slider based on max heatmap value
+
+    # callback to dynamically update the maximum value of slider based on max heatmap value
     @app.callback(
-    Output('color-range-slider', 'max'),
-    [Input('heatmap-graph', 'figure')]
-)
+        Output("color-range-slider", "max"), [Input("heatmap-graph", "figure")]
+    )
     def update_slider_max(figure):
         # extract the data from the figure
-        z_data = figure['data'][0]['z']
+        z_data = figure["data"][0]["z"]
 
         # calculate the max value
         max_value = np.max(z_data)
 
         return max_value
-    
-    #callback to dynamically update the min value of slider based on min heatmap value
+
+    # callback to dynamically update the min value of slider based on min heatmap value
     @app.callback(
-    Output('color-range-slider', 'min'),
-    [Input('heatmap-graph', 'figure')]
-)
+        Output("color-range-slider", "min"), [Input("heatmap-graph", "figure")]
+    )
     def update_slider_min(figure):
         # extract the data from the figure
-        z_data = figure['data'][0]['z']
+        z_data = figure["data"][0]["z"]
 
         # calculate the min value
         min_value = np.min(z_data)
