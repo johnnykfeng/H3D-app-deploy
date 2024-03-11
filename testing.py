@@ -159,7 +159,7 @@ def update_heatmap(csv_file, count_type, normalization, color_scale, color_range
     else:
         max_pixel_value = heatmap_table.values.max()
 
-    print(f"color_scale: {color_scale}")  # print color_scale value
+    # print(f"color_scale: {color_scale}")  # print color_s?cale value
 
     if color_range is None:
         color_range = [heatmap_table.values.min(), heatmap_table.values.max()]
@@ -167,11 +167,11 @@ def update_heatmap(csv_file, count_type, normalization, color_scale, color_range
     heatmap_fig = px.imshow(
         heatmap_table,
         color_continuous_scale=color_scale,  # use color_scale variable for colorscale
-        range_color= color_range,  
+        range_color=color_range,
         text_auto=True,
         labels=dict(color="Value", x="X", y="Y"),
         title=f"Heatmap of {filename_no_ext}",
-)
+    )
     heatmap_fig.update_layout(
         xaxis=dict(title="X-index of Pixel"),
         yaxis=dict(title="Y-index of Pixel"),
@@ -392,15 +392,15 @@ def create_app():
                         [
                             html.Label("Colorscale Slider"),
                             dcc.RangeSlider(
-                                id='color-range-slider',
+                                id="color-range-slider",
                                 min=0,
                                 max=1200,
                                 step=None,
-                                value=[0, 1200]
+                                value=[0, 1200],
                             ),
                         ]
                     ),
-                  dcc.Graph(
+                    dcc.Graph(
                         id="heatmap-graph",
                         clickData=(
                             {"points": [{"x": 3, "y": 3}]}
@@ -408,6 +408,7 @@ def create_app():
                             else "clickData"
                         ),
                     ),
+                    dcc.Graph(id="3d-surface-plot"),
                 ],
                 style={"display": "flex", "flex-direction": "column"},
             ),
@@ -555,15 +556,51 @@ def create_app():
             Input("count-type", "value"),
             Input("normalization-buttons", "value"),
             Input("color-scale", "value"),
-            Input("color-range-slider","value")
+            Input("color-range-slider", "value"),
         ],
     )
-    def update_heatmap_graph(csv_file, count_type, normalization, color_scale, color_range):
-        print(f"color_range: {color_range}")  # print color_range value
+    def update_heatmap_graph(
+        csv_file, count_type, normalization, color_scale, color_range
+    ):
+        # print(f"color_range: {color_range}")  # print color_range value
         ic(csv_file)
         if csv_file is None:
             csv_file = csv_files[app_defaults["csv_index"]]
-        return update_heatmap(csv_file, count_type, normalization, color_scale, color_range)
+        return update_heatmap(
+            csv_file, count_type, normalization, color_scale, color_range
+        )
+
+    @app.callback(
+        Output("3d-surface-plot", "figure"),
+        [Input("heatmap-graph", "figure")],
+        Input("color-scale", "value"),
+        [Input("color-range-slider", "value")],
+    )
+    def update_3d_surface_plot(figure, color_scale, color_range):
+        # Extract the data from the figure
+        z_data = figure["data"][0]["z"]
+
+        # Create x and y coordinates
+        x_data = list(range(len(z_data[0])))
+        y_data = list(range(len(z_data)))
+
+        # Create a 3D surface plot with the selected colorscale
+        plot_3d_fig = go.Figure(
+            data=[go.Surface(x=x_data, y=y_data, z=z_data, colorscale=color_scale)]
+        )
+
+        # Update the color range of the 3D plot based on the color range
+        plot_3d_fig.update_traces(cmin=color_range[0], cmax=color_range[1])
+        # Update the layout
+        plot_3d_fig.update_layout(
+            title="3D Surface Plot",
+            autosize=False,
+            width=800,
+            height=800,
+            margin=dict(l=65, r=50, b=65, t=90),
+        )
+
+        return plot_3d_fig
 
     @app.callback(
         Output("spectrum-avg-graph", "figure"),
