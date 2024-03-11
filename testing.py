@@ -184,6 +184,31 @@ def update_heatmap(csv_file, count_type, normalization, color_scale, color_range
 
     return heatmap_fig
 
+def update_3d_surface(figure, color_scale, color_range):
+    # extract the data from the figure
+        z_data = figure["data"][0]["z"]
+
+        # create x and y coordinates
+        x_data = list(range(len(z_data[0])))
+        y_data = list(range(len(z_data)))
+
+        # create 3D surface plot with the selected colorscale
+        plot_3d_fig = go.Figure(
+            data=[go.Surface(x=x_data, y=y_data, z=z_data, colorscale=color_scale)]
+        )
+
+        # update color range of 3D plot
+        plot_3d_fig.update_traces(cmin=color_range[0], cmax=color_range[1])
+        # update plot layout
+        plot_3d_fig.update_layout(
+            title="3D Surface Plot",
+            autosize=False,
+            width=800,
+            height=800,
+            margin=dict(l=65, r=50, b=65, t=90),
+        )
+
+        return plot_3d_fig
 
 def add_peak_lines(fig, bin_peak, max_y, peak_halfwidth=25):
     fig.add_shape(
@@ -576,31 +601,8 @@ def create_app():
         Input("color-scale", "value"),
         [Input("color-range-slider", "value")],
     )
-    def update_3d_surface_plot(figure, color_scale, color_range):
-        # extract the data from the figure
-        z_data = figure["data"][0]["z"]
-
-        # create x and y coordinates
-        x_data = list(range(len(z_data[0])))
-        y_data = list(range(len(z_data)))
-
-        # create 3D surface plot with the selected colorscale
-        plot_3d_fig = go.Figure(
-            data=[go.Surface(x=x_data, y=y_data, z=z_data, colorscale=color_scale)]
-        )
-
-        # update color range of 3D plot
-        plot_3d_fig.update_traces(cmin=color_range[0], cmax=color_range[1])
-        # update plot layout
-        plot_3d_fig.update_layout(
-            title="3D Surface Plot",
-            autosize=False,
-            width=800,
-            height=800,
-            margin=dict(l=65, r=50, b=65, t=90),
-        )
-
-        return plot_3d_fig
+    def update_3d_surface_graph(figure, color_scale, color_range):
+        return update_3d_surface(figure, color_scale, color_range)
 
     @app.callback(
         Output("spectrum-avg-graph", "figure"),
