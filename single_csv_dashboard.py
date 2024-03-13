@@ -126,9 +126,8 @@ for csv_file in csv_files:
     csv2df[csv_file] = (df, bin_peak, starting_x_range, starting_y_range)
 
 
-def update_heatmap(
-    csv_file, count_type="peak_counts", normalization="raw", color_scale="viridis"
-):
+def update_heatmap(csv_file, count_type, normalization, color_scale, color_range):
+
     filename = os.path.basename(csv_file)
     filename_no_ext = os.path.splitext(filename)[0]
 
@@ -157,15 +156,22 @@ def update_heatmap(
     if normalization == "normalized":
         max_pixel_value = heatmap_table.values.max()
         heatmap_table = (heatmap_table / max_pixel_value).round(2)
+    else:
+        max_pixel_value = heatmap_table.values.max()
+
+    # print(f"color_scale: {color_scale}")  # print color_s?cale value
+
+    if color_range is None:
+        color_range = [heatmap_table.values.min(), heatmap_table.values.max()]
 
     heatmap_fig = px.imshow(
         heatmap_table,
-        color_continuous_scale=color_scale,
+        color_continuous_scale=color_scale,  # use color_scale variable for colorscale
+        range_color=color_range,
         text_auto=True,
         labels=dict(color="Value", x="X", y="Y"),
         title=f"Heatmap of {filename_no_ext}",
     )
-
     heatmap_fig.update_layout(
         xaxis=dict(title="X-index of Pixel"),
         yaxis=dict(title="Y-index of Pixel"),
@@ -177,6 +183,33 @@ def update_heatmap(
     )
 
     return heatmap_fig
+
+
+def update_3d_surface(figure, color_scale, color_range):
+    # extract the data from the figure
+    z_data = figure["data"][0]["z"]
+
+    # create x and y coordinates
+    x_data = list(range(len(z_data[0])))
+    y_data = list(range(len(z_data)))
+
+    # create 3D surface plot with the selected colorscale
+    plot_3d_fig = go.Figure(
+        data=[go.Surface(x=x_data, y=y_data, z=z_data, colorscale=color_scale)]
+    )
+
+    # update color range of 3D plot
+    plot_3d_fig.update_traces(cmin=color_range[0], cmax=color_range[1])
+    # update plot layout
+    plot_3d_fig.update_layout(
+        title="3D Surface Plot",
+        autosize=False,
+        width=700,
+        height=700,
+        margin=dict(l=65, r=50, b=65, t=90),
+    )
+
+    return plot_3d_fig
 
 
 def add_peak_lines(fig, bin_peak, max_y, peak_halfwidth=25):
@@ -382,6 +415,18 @@ def create_app():
                         ],
                         style={"display": "flex", "flex-direction": "row"},
                     ),  # End of radio buttons for heatmap
+                    html.Div(
+                        [
+                            html.Label("Colorscale Slider"),
+                            dcc.RangeSlider(
+                                id="color-range-slider",
+                                min=0,
+                                max=1200,
+                                step=None,
+                                value=[0, 1200],
+                            ),
+                        ]
+                    ),
                     dcc.Graph(
                         id="heatmap-graph",
                         clickData=(
@@ -390,6 +435,7 @@ def create_app():
                             else "clickData"
                         ),
                     ),
+                    dcc.Graph(id="3d-surface-plot"),
                 ],
                 style={"display": "flex", "flex-direction": "column"},
             ),
@@ -490,7 +536,9 @@ def create_app():
                         ],
                         style={"display": "flex", "flex-direction": "row"},
                     ),  # end of container for dropdowns
-                    dcc.Graph(id="spectrum-pixel-graph-2"),
+                    dcc.Graph(
+                        id="spectrum-pixel-graph-2",
+                    ),
                     # bins range slider (x-axis)
                     html.Div(
                         [
@@ -504,6 +552,7 @@ def create_app():
                         ],
                         style={
                             "width": "70%",
+                            "margin": "0 auto",
                         },
                     ),
                     # counts range slider (y-axis)
@@ -519,6 +568,7 @@ def create_app():
                         ],
                         style={
                             "width": "70%",
+                            "margin": "0 auto",
                         },
                     ),
                 ],
@@ -537,13 +587,28 @@ def create_app():
             Input("count-type", "value"),
             Input("normalization-buttons", "value"),
             Input("color-scale", "value"),
+            Input("color-range-slider", "value"),
         ],
     )
-    def update_heatmap_graph(csv_file, count_type, normalization, color_scale):
+    def update_heatmap_graph(
+        csv_file, count_type, normalization, color_scale, color_range
+    ):
+        # print(f"color_range: {color_range}")  # print color_range value
         ic(csv_file)
         if csv_file is None:
             csv_file = csv_files[app_defaults["csv_index"]]
-        return update_heatmap(csv_file, count_type, normalization, color_scale)
+        return update_heatmap(
+            csv_file, count_type, normalization, color_scale, color_range
+        )
+
+    @app.callback(
+        Output("3d-surface-plot", "figure"),
+        [Input("heatmap-graph", "figure")],
+        Input("color-scale", "value"),
+        [Input("color-range-slider", "value")],
+    )
+    def update_3d_surface_graph(figure, color_scale, color_range):
+        return update_3d_surface(figure, color_scale, color_range)
 
     @app.callback(
         Output("spectrum-avg-graph", "figure"),
@@ -627,6 +692,32 @@ def create_app():
             csv_file = csv_files[app_defaults["csv_index"]]
         _, _, x_range, y_range = csv2df[csv_file]
         return x_range, x_range[1], y_range, y_range[1]
+
+    # callback to dynamically update the maximum value of slider based on max heatmap value
+    @app.callback(
+        Output("color-range-slider", "max"), [Input("heatmap-graph", "figure")]
+    )
+    def update_slider_max(figure):
+        # extract the data from the figure
+        z_data = figure["data"][0]["z"]
+
+        # calculate the max value
+        max_value = np.max(z_data)
+
+        return max_value
+
+    # callback to dynamically update the min value of slider based on min heatmap value
+    @app.callback(
+        Output("color-range-slider", "min"), [Input("heatmap-graph", "figure")]
+    )
+    def update_slider_min(figure):
+        # extract the data from the figure
+        z_data = figure["data"][0]["z"]
+
+        # calculate the min value
+        min_value = np.min(z_data)
+
+        return min_value
 
     return app
 
