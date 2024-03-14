@@ -6,6 +6,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import sys
 import os
+import markdown
 
 # Add root directory to sys.path to import ExtractModule
 project_root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -338,247 +339,289 @@ app_defaults = {
     "y3-dropdown": 8,
 }
 
+# Read the markdown file
+with open("app_readme.md", "r") as markdown_file:
+    readme_text = markdown_file.read()
+
+# Convert the markdown to HTML
+html_text = markdown.markdown(readme_text)
+
 
 def create_app():
-    app = dash.Dash(__name__)
-
+    app = dash.Dash(__name__, suppress_callback_exceptions=True)
     app.layout = html.Div(
         [
-            html.Div(
-                [
-                    html.H2("Heatmap Dashboard"),
-                    html.Label("Select a data file:"),
-                    dcc.Dropdown(
-                        id="csv-dropdown",
-                        options=[
-                            {"label": os.path.basename(csv_file), "value": csv_file}
-                            for csv_file in csv_files
-                        ],
-                        value=csv_files[app_defaults["csv_index"]],
-                        style={"width": "100%", "height": "50px", "font-size": "20px"},
-                    ),
-                    html.Div(  # Radio buttons for heatmap
-                        [
-                            dcc.RadioItems(
-                                id="count-type",
-                                options=[
-                                    {"label": "Peak Counts", "value": "peak_counts"},
-                                    {"label": "Total Counts", "value": "total_counts"},
-                                    {
-                                        "label": "Non-Peak Counts",
-                                        "value": "non_peak_counts",
-                                    },
-                                    {"label": "Pixel ID", "value": "pixel_id"},
-                                ],
-                                value="peak_counts",
-                                style={
-                                    "display": "flex",
-                                    "flex-direction": "column",
-                                    "font-size": "20px",  # Adjust the font size as desired
-                                    "margin-top": "20px",
-                                    "margin-left": "20px",
-                                    "margin-bottom": "20px",
-                                },
-                                # labelStyle={"display": "inline-block"},
-                            ),
-                            dcc.RadioItems(
-                                id="normalization-buttons",
-                                options=[
-                                    {"label": "Raw Counts", "value": "raw"},
-                                    {"label": "Normalized", "value": "normalized"},
-                                ],
-                                value="raw",
-                                style={
-                                    "display": "flex",
-                                    "flex-direction": "column",
-                                    "font-size": "20px",  # Adjust the font size as desired
-                                    "margin-top": "20px",
-                                },
-                            ),
-                            dcc.RadioItems(
-                                id="color-scale",
-                                options=[
-                                    {"label": "Viridis", "value": "viridis"},
-                                    {"label": "Plasma", "value": "plasma"},
-                                    {"label": "Inferno", "value": "inferno"},
-                                    {"label": "Jet", "value": "jet"},
-                                ],
-                                value="viridis",
-                                style={
-                                    "display": "flex",
-                                    "flex-direction": "column",
-                                    "font-size": "20px",  # Adjust the font size as desired
-                                    "margin-top": "20px",
-                                    "margin-left": "20px",
-                                },
-                            ),
-                        ],
-                        style={"display": "flex", "flex-direction": "row"},
-                    ),  # End of radio buttons for heatmap
-                    html.Div(
-                        [
-                            html.Label("Colorscale Slider"),
-                            dcc.RangeSlider(
-                                id="color-range-slider",
-                                min=0,
-                                max=1200,
-                                step=None,
-                                value=[0, 1200],
-                            ),
-                        ]
-                    ),
-                    dcc.Graph(
-                        id="heatmap-graph",
-                        clickData=(
-                            {"points": [{"x": 3, "y": 3}]}
-                            if "clickData" not in locals()
-                            else "clickData"
-                        ),
-                    ),
-                    dcc.Graph(id="3d-surface-plot"),
+            dcc.Tabs(
+                id="tabs",
+                value="tab-1",
+                children=[
+                    dcc.Tab(label="Heatmap and Spectrum Dashboard", value="tab-1"),
+                    dcc.Tab(label="README", value="tab-2"),
                 ],
-                style={"display": "flex", "flex-direction": "column"},
             ),
-            html.Div(
-                [
-                    html.H2("Spectrum Dashboard"),
-                    dcc.Graph(id="spectrum-avg-graph"),
-                    dcc.Graph(id="spectrum-pixel-graph-1"),
-                    html.Div(  # container for dropdowns
-                        [
-                            html.Div(
-                                [
-                                    html.Label("X-1 = "),
-                                    dcc.Dropdown(
-                                        id="x-index-dropdown-1",
-                                        options=[
-                                            {"label": str(i), "value": i}
-                                            for i in range(1, 12)
-                                        ],
-                                        value=9,
-                                        style={"margin-right": "20px"},
-                                    ),
-                                    html.Label("Y-1 = "),
-                                    dcc.Dropdown(
-                                        id="y-index-dropdown-1",
-                                        options=[
-                                            {"label": str(i), "value": i}
-                                            for i in range(1, 12)
-                                        ],
-                                        value=3,
-                                        style={"margin-right": "20px"},
-                                    ),
-                                ],
-                                style={
-                                    "display": "flex",
-                                    "flex-direction": "column",
-                                    "margin-left": "40px",
-                                },
-                            ),
-                            html.Div(
-                                [
-                                    html.Label("X-2 = "),
-                                    dcc.Dropdown(
-                                        id="x-index-dropdown-2",
-                                        options=[
-                                            {"label": str(i), "value": i}
-                                            for i in range(1, 12)
-                                        ],
-                                        value=8,
-                                        style={"margin-right": "20px"},
-                                    ),
-                                    html.Label("Y-2 = "),
-                                    dcc.Dropdown(
-                                        id="y-index-dropdown-2",
-                                        options=[
-                                            {"label": str(i), "value": i}
-                                            for i in range(1, 12)
-                                        ],
-                                        value=4,
-                                        style={"margin-right": "20px"},
-                                    ),
-                                ],
-                                style={
-                                    "display": "flex",
-                                    "flex-direction": "column",
-                                    "margin-left": "40px",
-                                },
-                            ),
-                            html.Div(
-                                [
-                                    html.Label("X-3 = "),
-                                    dcc.Dropdown(
-                                        id="x-index-dropdown-3",
-                                        options=[
-                                            {"label": str(i), "value": i}
-                                            for i in range(1, 12)
-                                        ],
-                                        value=6,
-                                        style={"margin-right": "20px"},
-                                    ),
-                                    html.Label("Y-3 = "),
-                                    dcc.Dropdown(
-                                        id="y-index-dropdown-3",
-                                        options=[
-                                            {"label": str(i), "value": i}
-                                            for i in range(1, 12)
-                                        ],
-                                        value=8,
-                                        style={"margin-right": "20px"},
-                                    ),
-                                ],
-                                style={
-                                    "display": "flex",
-                                    "flex-direction": "column",
-                                    "margin-left": "40px",
-                                },
-                            ),
-                        ],
-                        style={"display": "flex", "flex-direction": "row"},
-                    ),  # end of container for dropdowns
-                    dcc.Graph(
-                        id="spectrum-pixel-graph-2",
-                    ),
-                    # bins range slider (x-axis)
-                    html.Div(
-                        [
-                            html.Label("X"),
-                            dcc.RangeSlider(
-                                min=0,
-                                max=1499,
-                                value=[1, 200],
-                                id="x-axis-slider",
-                            ),
-                        ],
-                        style={
-                            "width": "70%",
-                            "margin": "0 auto",
-                        },
-                    ),
-                    # counts range slider (y-axis)
-                    html.Div(
-                        [
-                            html.Label("Y"),
-                            dcc.RangeSlider(
-                                min=0,
-                                max=100,
-                                value=[0, 60],
-                                id="y-axis-slider",
-                            ),
-                        ],
-                        style={
-                            "width": "70%",
-                            "margin": "0 auto",
-                        },
-                    ),
-                ],
-                style={"display": "flex", "flex-direction": "column"},
-            ),
-        ],
-        style={
-            "display": "flex",
-        },
+            html.Div(id="tabs-content"),
+        ]
     )
+
+    @app.callback(Output("tabs-content", "children"), [Input("tabs", "value")])
+    def render_content(tab):
+        if tab == "tab-2":
+            with open("app_readme.md", "r") as markdown_file:
+                readme_text = markdown_file.read()
+            return dcc.Markdown(children=readme_text)
+        elif tab == "tab-1":
+            return html.Div(
+                [
+                    html.Div(
+                        [
+                            html.H2("Heatmap Dashboard"),
+                            html.Label("Select a data file:"),
+                            dcc.Dropdown(
+                                id="csv-dropdown",
+                                options=[
+                                    {
+                                        "label": os.path.basename(csv_file),
+                                        "value": csv_file,
+                                    }
+                                    for csv_file in csv_files
+                                ],
+                                value=csv_files[app_defaults["csv_index"]],
+                                style={
+                                    "width": "100%",
+                                    "height": "50px",
+                                    "font-size": "20px",
+                                },
+                            ),
+                            html.Div(  # Radio buttons for heatmap
+                                [
+                                    dcc.RadioItems(
+                                        id="count-type",
+                                        options=[
+                                            {
+                                                "label": "Peak Counts",
+                                                "value": "peak_counts",
+                                            },
+                                            {
+                                                "label": "Total Counts",
+                                                "value": "total_counts",
+                                            },
+                                            {
+                                                "label": "Non-Peak Counts",
+                                                "value": "non_peak_counts",
+                                            },
+                                            {"label": "Pixel ID", "value": "pixel_id"},
+                                        ],
+                                        value="peak_counts",
+                                        style={
+                                            "display": "flex",
+                                            "flex-direction": "column",
+                                            "font-size": "20px",  
+                                            "margin-top": "20px",
+                                            "margin-left": "20px",
+                                            "margin-bottom": "20px",
+                                        },
+                                    ),
+                                    dcc.RadioItems(
+                                        id="normalization-buttons",
+                                        options=[
+                                            {"label": "Raw Counts", "value": "raw"},
+                                            {
+                                                "label": "Normalized",
+                                                "value": "normalized",
+                                            },
+                                        ],
+                                        value="raw",
+                                        style={
+                                            "display": "flex",
+                                            "flex-direction": "column",
+                                            "font-size": "20px",  
+                                            "margin-top": "20px",
+                                        },
+                                    ),
+                                    dcc.RadioItems(
+                                        id="color-scale",
+                                        options=[
+                                            {"label": "Viridis", "value": "viridis"},
+                                            {"label": "Plasma", "value": "plasma"},
+                                            {"label": "Inferno", "value": "inferno"},
+                                            {"label": "Jet", "value": "jet"},
+                                        ],
+                                        value="viridis",
+                                        style={
+                                            "display": "flex",
+                                            "flex-direction": "column",
+                                            "font-size": "20px",  
+                                            "margin-top": "20px",
+                                            "margin-left": "20px",
+                                        },
+                                    ),
+                                ],
+                                style={"display": "flex", "flex-direction": "row"},
+                            ),  # End of radio buttons for heatmap
+                            html.Div(
+                                [
+                                    html.Label("Colorscale Slider"),
+                                    dcc.RangeSlider(
+                                        id="color-range-slider",
+                                        min=0,
+                                        max=1200,
+                                        step=None,
+                                        value=[0, 1200],
+                                    ),
+                                ]
+                            ),
+                            dcc.Graph(
+                                id="heatmap-graph",
+                                clickData=(
+                                    {"points": [{"x": 3, "y": 3}]}
+                                    if "clickData" not in locals()
+                                    else "clickData"
+                                ),
+                            ),
+                            dcc.Graph(id="3d-surface-plot"),
+                        ],
+                        style={"display": "flex", "flex-direction": "column"},
+                    ),
+                    html.Div(
+                        [
+                            html.H2("Spectrum Dashboard"),
+                            dcc.Graph(id="spectrum-avg-graph"),
+                            dcc.Graph(id="spectrum-pixel-graph-1"),
+                            html.Div(  # container for dropdowns
+                                [
+                                    html.Div(
+                                        [
+                                            html.Label("X-1 = "),
+                                            dcc.Dropdown(
+                                                id="x-index-dropdown-1",
+                                                options=[
+                                                    {"label": str(i), "value": i}
+                                                    for i in range(1, 12)
+                                                ],
+                                                value=9,
+                                                style={"margin-right": "20px"},
+                                            ),
+                                            html.Label("Y-1 = "),
+                                            dcc.Dropdown(
+                                                id="y-index-dropdown-1",
+                                                options=[
+                                                    {"label": str(i), "value": i}
+                                                    for i in range(1, 12)
+                                                ],
+                                                value=3,
+                                                style={"margin-right": "20px"},
+                                            ),
+                                        ],
+                                        style={
+                                            "display": "flex",
+                                            "flex-direction": "column",
+                                            "margin-left": "40px",
+                                        },
+                                    ),
+                                    html.Div(
+                                        [
+                                            html.Label("X-2 = "),
+                                            dcc.Dropdown(
+                                                id="x-index-dropdown-2",
+                                                options=[
+                                                    {"label": str(i), "value": i}
+                                                    for i in range(1, 12)
+                                                ],
+                                                value=8,
+                                                style={"margin-right": "20px"},
+                                            ),
+                                            html.Label("Y-2 = "),
+                                            dcc.Dropdown(
+                                                id="y-index-dropdown-2",
+                                                options=[
+                                                    {"label": str(i), "value": i}
+                                                    for i in range(1, 12)
+                                                ],
+                                                value=4,
+                                                style={"margin-right": "20px"},
+                                            ),
+                                        ],
+                                        style={
+                                            "display": "flex",
+                                            "flex-direction": "column",
+                                            "margin-left": "40px",
+                                        },
+                                    ),
+                                    html.Div(
+                                        [
+                                            html.Label("X-3 = "),
+                                            dcc.Dropdown(
+                                                id="x-index-dropdown-3",
+                                                options=[
+                                                    {"label": str(i), "value": i}
+                                                    for i in range(1, 12)
+                                                ],
+                                                value=6,
+                                                style={"margin-right": "20px"},
+                                            ),
+                                            html.Label("Y-3 = "),
+                                            dcc.Dropdown(
+                                                id="y-index-dropdown-3",
+                                                options=[
+                                                    {"label": str(i), "value": i}
+                                                    for i in range(1, 12)
+                                                ],
+                                                value=8,
+                                                style={"margin-right": "20px"},
+                                            ),
+                                        ],
+                                        style={
+                                            "display": "flex",
+                                            "flex-direction": "column",
+                                            "margin-left": "40px",
+                                        },
+                                    ),
+                                ],
+                                style={"display": "flex", "flex-direction": "row"},
+                            ),  # end of container for dropdowns
+                            dcc.Graph(
+                                id="spectrum-pixel-graph-2",
+                            ),
+                            # bins range slider (x-axis)
+                            html.Div(
+                                [
+                                    html.Label("X"),
+                                    dcc.RangeSlider(
+                                        min=0,
+                                        max=1499,
+                                        value=[1, 200],
+                                        id="x-axis-slider",
+                                    ),
+                                ],
+                                style={
+                                    "width": "70%",
+                                    "margin": "0 auto",
+                                },
+                            ),
+                            # counts range slider (y-axis)
+                            html.Div(
+                                [
+                                    html.Label("Y"),
+                                    dcc.RangeSlider(
+                                        min=0,
+                                        max=100,
+                                        value=[0, 60],
+                                        id="y-axis-slider",
+                                    ),
+                                ],
+                                style={
+                                    "width": "70%",
+                                    "margin": "0 auto",
+                                },
+                            ),
+                        ],
+                        style={"display": "flex", "flex-direction": "column"},
+                    ),
+                ],
+                style={
+                    "display": "flex",
+                },
+            )  
 
     @app.callback(
         Output("heatmap-graph", "figure"),
@@ -593,7 +636,6 @@ def create_app():
     def update_heatmap_graph(
         csv_file, count_type, normalization, color_scale, color_range
     ):
-        # print(f"color_range: {color_range}")  # print color_range value
         ic(csv_file)
         if csv_file is None:
             csv_file = csv_files[app_defaults["csv_index"]]
