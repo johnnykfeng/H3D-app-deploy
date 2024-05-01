@@ -173,16 +173,10 @@ class ExtractModule:
 class TransformDf:
     def __init__(
         self,
-        # extracted_df_list: List[pd.DataFrame],
-        # bin_peak: int,
-        # bin_width: int = 25,
         if_calculate_peak_count: bool = True,
     ):
-        # self.extracted_df_list = extracted_df_list
         self.df_transformed_list = []
         self.N_DF = None
-        # self.bin_peak = bin_peak
-        # self.bin_width = bin_width
         self.if_calculate_peak_count = if_calculate_peak_count
 
     @staticmethod
@@ -192,6 +186,23 @@ class TransformDf:
             array[peak_bin - peak_halfwidth : peak_bin + peak_halfwidth]
         )
         return peak_count
+
+    @staticmethod
+    def avg_neighbor_counts(df, x_index, y_index, count_type='peak_count'):
+        sum_counts = 0
+        neighbor_coords = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+        neighbor_counter = 0
+        for dx, dy in neighbor_coords:
+            nx, ny = x_index + dx, y_index + dy
+            if (nx in df['x_index'].values) and (ny in df['y_index'].values):
+                neighbor_counter += 1
+                sum_counts += df.loc[(df['x_index']==nx) & (df['y_index']==ny), count_type].values[0]
+        avg_counts = sum_counts / neighbor_counter
+        return avg_counts
+    
+    @staticmethod
+    def leaking_ratio(row, count_type='peak_count'):
+        return row['peak_count'] / row['avg_neighbor_counts']
 
     def transform_df(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -240,14 +251,6 @@ class TransformDf:
             | (df_new["y_index"] == 1)
             | (df_new["y_index"] == 11)
         )
-
-        # if self.if_calculate_peak_count:
-        #     df_new["peak_count"] = df_new["array_bins"].apply(
-        #         lambda x: self.calculate_peak_count(
-        #             x, self.bin_peak, self.bin_width
-        #         )
-        #     )
-        #     df_new["non_peak_count"] = df_new["total_count"] - df_new["peak_count"]
 
         return df_new
 
