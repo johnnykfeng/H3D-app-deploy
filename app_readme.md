@@ -1,4 +1,4 @@
-# Instructions on using single_csv_dashboard.py
+# How to use Heatmap and Spectrum Dashboard
 
 This dashboard is designed to assist in visualizing the data obtained from the H3D Mapper experiments.
 
