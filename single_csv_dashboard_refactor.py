@@ -8,10 +8,19 @@ from dash.dependencies import Input, Output
 import plotly.express as px
 import plotly.graph_objects as go
 
-from data_handling_modules import ExtractModule, TransformDf, PeakFinder
-
+from data_handling_modules import (
+                                ExtractModule, 
+                                TransformDf, 
+                                PeakFinder)
+from plotting_modules import (
+    create_spectrum_average,
+    create_spectrum_pixel,
+    create_pixelized_heatmap,
+    create_surface_plot_3d,
+)
 
 print("+++++++++++ START PROGRAM +++++++++++")
+
 
 def find_csv_files(directory):
     """Find all CSV files in the given directory and its subdirectories"""
@@ -34,11 +43,9 @@ def calculate_peak_count(array: np.array, peak_bin: int, peak_halfwidth=25):
     peak_count = np.sum(array[peak_bin - peak_halfwidth : peak_bin + peak_halfwidth])
     return peak_count
 
-approximate_peak_bins = {
-    "Am241": 57,
-    "Cs137": 1578,
-    "Co57": 244
-}
+
+approximate_peak_bins = {"Am241": 57, "Cs137": 1578, "Co57": 244}
+
 
 def source_from_filename(filename):
     if "Cs137" in filename:
@@ -49,6 +56,7 @@ def source_from_filename(filename):
     else:
         source = "Am241"
     return source
+
 
 def extract_csv2df(csv_file, module_number=0):
     """
@@ -68,24 +76,26 @@ def extract_csv2df(csv_file, module_number=0):
     df = EM.extract_module2df(module_number=module_number)
     TD = TransformDf()
     df = TD.transform_df(df)
-    
+
     # used to determine the range of the y axis in spectrum plots
-    max_count_value = df["array_bins"].apply(lambda x: max(x)).max()
+    # max_count_value = df["array_bins"].apply(lambda x: max(x)).max()
     # avg spectrum use to determine the bin_peak
     avg_array_bins = df["array_bins"].sum(axis=0) / 121
-        
+    max_count_value = int(avg_array_bins.max() * 1.5)
+
     source = source_from_filename(filename)
 
     PF = PeakFinder()
     avg_peak_bin = PF.find_peak_bin(avg_array_bins, approximate_peak_bins[source])
     df = TD.add_peak_counts(df, bin_peak=avg_peak_bin, bin_width=25)
-    
+
     number_of_bins = len(df["array_bins"].values[0])
     starting_x_range = [0, number_of_bins - 1]
     starting_y_range = [0, max_count_value]
-    
+
     return df, avg_peak_bin, starting_x_range, starting_y_range
-    
+
+
 # Extract data from csv files and store in csv2df dictionary
 csv2df = {}
 for csv_file in csv_files:
@@ -97,182 +107,8 @@ for csv_file in csv_files:
     csv2df[csv_file] = (df, bin_peak, starting_x_range, starting_y_range)
 
 
-def update_heatmap(csv_file, count_type, normalization, color_scale, color_range):
-
-    filename = os.path.basename(csv_file)
-    filename_no_ext = os.path.splitext(filename)[0]
-
-    df, bin_peak, _, _ = csv2df[csv_file]
-
-    heatmap_table = df.pivot_table(
-        index="y_index", columns="x_index", values=count_type)
-
-    if normalization == "normalized":
-        max_pixel_value = heatmap_table.values.max()
-        heatmap_table = (heatmap_table / max_pixel_value).round(2)
-    else:
-        max_pixel_value = heatmap_table.values.max()
-
-    # print(f"color_scale: {color_scale}")  # print color_s?cale value
-
-    if color_range is None:
-        color_range = [heatmap_table.values.min(), heatmap_table.values.max()]
-
-    heatmap_fig = px.imshow(
-        heatmap_table,
-        color_continuous_scale=color_scale,  # use color_scale variable for colorscale
-        range_color=color_range,
-        text_auto=True,
-        labels=dict(color="Value", x="X", y="Y"),
-        title=f"Heatmap of {filename_no_ext}",
-    )
-    heatmap_fig.update_layout(
-        xaxis=dict(title="X-index of Pixel"),
-        yaxis=dict(title="Y-index of Pixel"),
-        xaxis_nticks=12,
-        yaxis_nticks=12,
-        margin=dict(l=40, r=40, t=40, b=40),
-        width=700,
-        height=700,
-    )
-
-    return heatmap_fig
-
-
-def update_3d_surface(figure, color_scale, color_range):
-    # extract the data from the figure
-    z_data = figure["data"][0]["z"]
-
-    # create x and y coordinates
-    x_data = list(range(len(z_data[0])))
-    y_data = list(range(len(z_data)))
-
-    # create 3D surface plot with the selected colorscale
-    plot_3d_fig = go.Figure(
-        data=[go.Surface(x=x_data, y=y_data, z=z_data, colorscale=color_scale)]
-    )
-
-    # update color range of 3D plot
-    # plot_3d_fig.update_traces(cmin=color_range[0], cmax=color_range[1])
-    # update plot layout
-    plot_3d_fig.update_layout(
-        title="3D Surface Plot",
-        autosize=False,
-        width=700,
-        height=700,
-        margin=dict(l=65, r=50, b=65, t=90),
-    )
-
-    return plot_3d_fig
-
-
-def add_peak_lines(fig, bin_peak, max_y, peak_halfwidth=25):
-    fig.add_shape(
-        type="line",
-        x0=bin_peak,
-        y0=0,
-        x1=bin_peak,
-        y1=max_y,
-        line=dict(color="red", width=2),
-        opacity=0.4,
-    )
-    fig.add_shape(
-        type="line",
-        x0=bin_peak - peak_halfwidth,
-        y0=0,
-        x1=bin_peak - peak_halfwidth,
-        y1=max_y,
-        line=dict(color="red", width=1, dash="dash"),
-        opacity=0.5,
-    )
-    fig.add_shape(
-        type="line",
-        x0=bin_peak + peak_halfwidth,
-        y0=0,
-        x1=bin_peak + peak_halfwidth,
-        y1=max_y,
-        line=dict(color="red", width=1, dash="dash"),
-        opacity=0.5,
-    )
-    return fig
-
-
-def update_axis_range(fig, x_range, y_range):
-    fig.update_xaxes(range=[min(x_range), max(x_range)])
-    fig.update_yaxes(range=[min(y_range), max(y_range)])
-    return fig
-
-
-def update_spectrum_avg(csv_file, x_range, y_range):
-    df, bin_peak, _, _ = csv2df[csv_file]
-    summed_array_bins = np.sum(df["array_bins"].values, axis=0)
-    avg_array_bins = summed_array_bins / len(df)
-    avg_total_counts = np.sum(df["total_count"].values) / len(df)
-    avg_peak_counts = calculate_peak_count(avg_array_bins, bin_peak)
-
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=np.arange(len(avg_array_bins)), y=avg_array_bins))
-
-    fig = add_peak_lines(fig, bin_peak, max(avg_array_bins))
-    fig = update_axis_range(fig, x_range, y_range)
-
-    fig.update_layout(
-        title=f"Average spectrum, Total count= {avg_total_counts:.1f}, Peak count= {avg_peak_counts:.1f} ",
-        xaxis_title="Bin Index",
-        yaxis_title="Average Counts",
-        width=700,
-        height=350,
-    )
-
-    return fig
-
-
-def update_spectrum_pixel(csv_file, x_range, y_range, *args):
-    df, bin_peak, _, _ = csv2df[csv_file]
-
-    fig = go.Figure()
-
-    ic(args)
-    ic(len(args))
-    for arg in args:
-        if isinstance(arg, tuple):
-            x_index, y_index = arg
-            ic(x_index, y_index)
-
-        if (x_index is not None) and (y_index is not None):
-            pixel_df = df[(df["x_index"] == x_index) & (df["y_index"] == y_index)]
-            # peak_count = pixel_df["peak_count"].values[0]
-            array_bins = pixel_df["array_bins"].values[0]
-            fig.add_trace(
-                go.Scatter(
-                    x=np.arange(1, len(array_bins) + 1),
-                    y=array_bins,
-                    name=f"Pixel ({x_index}, {y_index})",
-                )
-            )
-            fig = add_peak_lines(fig, bin_peak, max(array_bins))
-
-    fig = update_axis_range(fig, x_range, y_range)
-
-    fig.update_layout(
-        # title=f"Pixel ({x_index}, {y_index}), Peak count = {peak_count}",
-        xaxis_title="Bin Index",
-        yaxis_title="Counts",
-        width=700,
-        height=350,
-    )
-    total_count = pixel_df["total_count"].values[0]
-    peak_count = pixel_df["peak_count"].values[0]
-    if len(args) == 1:
-        fig.update_layout(
-            title=f"Pixel ({x_index}, {y_index}), Total count = {total_count}, Peak count = {peak_count}",
-        )
-
-    return fig
-
-
 app_defaults = {
-    "csv_index": 1,
+    "csv_index": 3,
     "count_type": "peak_count",
     "normalization": "raw",
     "color_scale": "viridis",
@@ -362,7 +198,7 @@ def create_app():
                                         style={
                                             "display": "flex",
                                             "flex-direction": "column",
-                                            "font-size": "20px",  
+                                            "font-size": "20px",
                                             "margin-top": "20px",
                                             "margin-left": "20px",
                                             "margin-bottom": "20px",
@@ -377,11 +213,11 @@ def create_app():
                                                 "value": "normalized",
                                             },
                                         ],
-                                        value="raw",
+                                        value=app_defaults["normalization"],
                                         style={
                                             "display": "flex",
                                             "flex-direction": "column",
-                                            "font-size": "20px",  
+                                            "font-size": "20px",
                                             "margin-top": "20px",
                                         },
                                     ),
@@ -397,7 +233,7 @@ def create_app():
                                         style={
                                             "display": "flex",
                                             "flex-direction": "column",
-                                            "font-size": "20px",  
+                                            "font-size": "20px",
                                             "margin-top": "20px",
                                             "margin-left": "20px",
                                         },
@@ -433,9 +269,13 @@ def create_app():
                         [
                             html.H2("Spectrum Dashboard"),
                             dcc.Graph(id="spectrum-avg-graph"),
-                            html.H3("Click on a pixel in the heatmap to view its spectrum."),
+                            html.H3(
+                                "Click on a pixel in the heatmap to view its spectrum."
+                            ),
                             dcc.Graph(id="spectrum-pixel-graph-1"),
-                            html.H3("Select pixels with dropdowns to compare their spectra."),
+                            html.H3(
+                                "Select pixels with dropdowns to compare their spectra."
+                            ),
                             html.Div(  # container for dropdowns
                                 [
                                     html.Div(
@@ -534,7 +374,7 @@ def create_app():
                             # bins range slider (x-axis)
                             html.Div(
                                 [
-                                    html.Label("X"),
+                                    html.Label("X-axis range"),
                                     dcc.RangeSlider(
                                         min=0,
                                         max=1999,
@@ -543,14 +383,14 @@ def create_app():
                                     ),
                                 ],
                                 style={
-                                    "width": "70%",
+                                    "width": "90%",
                                     "margin": "0 auto",
                                 },
                             ),
                             # counts range slider (y-axis)
                             html.Div(
                                 [
-                                    html.Label("Y"),
+                                    html.Label("Y-axis range"),
                                     dcc.RangeSlider(
                                         min=0,
                                         max=100,
@@ -559,7 +399,7 @@ def create_app():
                                     ),
                                 ],
                                 style={
-                                    "width": "70%",
+                                    "width": "90%",
                                     "margin": "0 auto",
                                 },
                             ),
@@ -570,7 +410,33 @@ def create_app():
                 style={
                     "display": "flex",
                 },
-            )  
+            )
+
+    # callback to dynamically update the maximum value of slider based on max heatmap value
+    @app.callback(
+        Output("color-range-slider", "max"), [Input("heatmap-graph", "figure")]
+    )
+    def update_color_slider_max(figure):
+        # extract the data from the figure
+        z_data = figure["data"][0]["z"]
+
+        # calculate the max value
+        max_value = np.max(z_data)
+
+        return max_value
+
+    # callback to dynamically update the min value of slider based on min heatmap value
+    @app.callback(
+        Output("color-range-slider", "min"), [Input("heatmap-graph", "figure")]
+    )
+    def update_color_slider_min(figure):
+        # extract the data from the figure
+        z_data = figure["data"][0]["z"]
+
+        # calculate the min value
+        min_value = np.min(z_data)
+
+        return min_value
 
     @app.callback(
         Output("heatmap-graph", "figure"),
@@ -588,18 +454,20 @@ def create_app():
         ic(csv_file)
         if csv_file is None:
             csv_file = csv_files[app_defaults["csv_index"]]
-        return update_heatmap(
-            csv_file, count_type, normalization, color_scale, color_range
+        df, _, _, _ = csv2df[csv_file]
+        return create_pixelized_heatmap(
+            df, count_type, normalization, color_scale, color_range,
         )
 
     @app.callback(
         Output("3d-surface-plot", "figure"),
-        [Input("heatmap-graph", "figure")],
-        Input("color-scale", "value"),
-        [Input("color-range-slider", "value")],
+        [
+            Input("heatmap-graph", "figure"),
+            Input("color-scale", "value")
+        ],
     )
-    def update_3d_surface_graph(figure, color_scale, color_range):
-        return update_3d_surface(figure, color_scale, color_range)
+    def update_3d_surface_graph(figure, color_scale):
+        return create_surface_plot_3d(figure, color_scale)
 
     @app.callback(
         Output("spectrum-avg-graph", "figure"),
@@ -609,10 +477,14 @@ def create_app():
             Input("y-axis-slider", "value"),
         ],
     )
-    def update_spectrum_avg_graph(csv_file, x_range, y_range):
+    def update_spectrum_average_graph(csv_file, x_range, y_range):
         if csv_file is None:
             csv_file = csv_files[app_defaults["csv_index"]]
-        return update_spectrum_avg(csv_file, x_range, y_range)
+        df, bin_peak, _, _ = csv2df[csv_file]
+
+        return create_spectrum_average(
+            df, bin_peak=bin_peak, x_range=x_range, y_range=y_range
+        )
 
     @app.callback(
         Output("spectrum-pixel-graph-1", "figure"),
@@ -629,8 +501,10 @@ def create_app():
         ic(x_index_click, y_index_click)
         if csv_file is None:
             csv_file = csv_files[app_defaults["csv_index"]]
-        return update_spectrum_pixel(
-            csv_file, x_range, y_range, (x_index_click, y_index_click)
+        df, bin_peak, _, _ = csv2df[csv_file]
+
+        return create_spectrum_pixel(
+            df, bin_peak, x_range, y_range, (x_index_click, y_index_click)
         )
 
     @app.callback(
@@ -660,8 +534,10 @@ def create_app():
     ):
         if csv_file is None:
             csv_file = csv_files[app_defaults["csv_index"]]
-        return update_spectrum_pixel(
-            csv_file,
+        df, bin_peak, _, _ = csv2df[csv_file]
+        return create_spectrum_pixel(
+            df,
+            bin_peak,
             x_range,
             y_range,
             (x_index_dropdown_1, y_index_dropdown_1),
@@ -671,53 +547,28 @@ def create_app():
 
     @app.callback(
         [
-            Output("x-axis-slider", "value"),
             Output("x-axis-slider", "max"),
-            Output("y-axis-slider", "value"),
             Output("y-axis-slider", "max"),
+            Output("x-axis-slider", "value"),
+            Output("y-axis-slider", "value"),
         ],
         [Input("csv-dropdown", "value")],
     )
-    def update_slider_values(csv_file):
+    def update_slider_max(csv_file):
         if csv_file is None:
             csv_file = csv_files[app_defaults["csv_index"]]
-            
+
         filename = os.path.basename(csv_file)
         source = source_from_filename(filename)
         _, _, x_range, y_range = csv2df[csv_file]
+        # return max(x_range), max(y_range)
         if source == "Am241":
             starting_x_range = [50, 150]
         elif source == "Co57":
             starting_x_range = [100, 350]
-        else: # source == Cs137
-            starting_x_range = [1500, 1650]
-        return starting_x_range, x_range[1], y_range, y_range[1]
-
-    # callback to dynamically update the maximum value of slider based on max heatmap value
-    @app.callback(
-        Output("color-range-slider", "max"), [Input("heatmap-graph", "figure")]
-    )
-    def update_slider_max(figure):
-        # extract the data from the figure
-        z_data = figure["data"][0]["z"]
-
-        # calculate the max value
-        max_value = np.max(z_data)
-
-        return max_value
-
-    # callback to dynamically update the min value of slider based on min heatmap value
-    @app.callback(
-        Output("color-range-slider", "min"), [Input("heatmap-graph", "figure")]
-    )
-    def update_slider_min(figure):
-        # extract the data from the figure
-        z_data = figure["data"][0]["z"]
-
-        # calculate the min value
-        min_value = np.min(z_data)
-
-        return min_value
+        else:  # source == Cs137
+            starting_x_range = [1400, 1750]
+        return max(x_range), max(y_range), starting_x_range, y_range
 
     return app
 
