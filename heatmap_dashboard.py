@@ -3,18 +3,15 @@ from dash import dcc, html
 from dash.dependencies import Input, Output
 import plotly.express as px
 import plotly.graph_objects as go
-import sys
-import os
 import numpy as np
-
-# Add root directory to sys.path to import ExtractModule
-project_root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(project_root_dir)
-from Extract_module import (
+from data_handling_modules import (
     ExtractModule,
     TransformDf,
-    OrganizeData,
-    extract_metadata_list,
+)
+from plotting_modules import (
+    create_spectrum_average,
+    create_spectrum_pixel,
+    create_pixelized_heatmap,
 )
 
 # csv_file = r"data_analysis\Co57_2mins_2000V_20cycles.csv"
@@ -23,176 +20,23 @@ EM = ExtractModule(csv_file)
 extracted_df_list = EM.extract_all_modules2df()
 # df_transformed_list = EM.transform_all_df()
 TD = TransformDf()
-TD.transform_all_df(extracted_df_list)
+df_transformed_list = TD.transform_all_df(extracted_df_list)
 
 peak_bin = 224
 peak_halfwidth = 50
 
 TD.add_peak_counts_all(peak_bin, peak_halfwidth)
 
-OD = OrganizeData(TD.df_transformed_list, EM.csv_file, include_peak_count=True)
-all_data_dict = OD.all_data_dict
 N_MODULES = EM.number_of_modules  # number of dataframes, used for slider
 N_PIXELS_X = EM.n_pixels_x  # 11 pixels
 N_PIXELS_Y = EM.n_pixels_y  # 11 pixels
-x_positions = extract_metadata_list(csv_file, "Stage position x (in mm):")
-y_positions = extract_metadata_list(csv_file, "Stage position y (in mm):")
+x_positions = EM.extract_metadata_list(csv_file, "Stage position x (in mm):")
+y_positions = EM.extract_metadata_list(csv_file, "Stage position y (in mm):")
 
 peak_bin = 224
 peak_halfwidth = 50
 
-del EM, TD, OD  # delete the original objects to free up memory
-
-
-def update_heatmap(counter, heatmap_type, normalization="raw", color_scale="viridis"):
-    stage_x = x_positions[counter]
-    stage_y = y_positions[counter]
-
-    if heatmap_type == "total_counts":
-        heatmap_table = all_data_dict[counter]["heatmap_table"]
-    elif heatmap_type == "peak_counts":
-        heatmap_table = all_data_dict[counter]["heatmap_peak"]
-    elif heatmap_type == "non_peak_counts":
-        heatmap_table = all_data_dict[counter]["heatmap_non_peak"]
-    elif heatmap_type == "pixel_id":
-        heatmap_table = all_data_dict[counter]["pixel_id_map"]
-    else:
-        heatmap_table = all_data_dict[counter]["heatmap_peak"]
-
-    if normalization == "normalized":
-        max_pixel_value = heatmap_table.values.max()
-        heatmap_table = (heatmap_table / max_pixel_value).round(2)
-
-    title_string = f"""Stage X: {stage_x}, Stage Y: {stage_y}, 
-    Sum all pixels: {all_data_dict[counter]['sum_total_counts']},
-    Max count: {all_data_dict[counter]['max_total_counts']}"""
-    heatmap_fig = px.imshow(
-        heatmap_table,
-        color_continuous_scale=color_scale,
-        text_auto=True,
-        labels=dict(color="Value", x="X", y="Y"),
-        title=title_string,
-    )
-
-    heatmap_fig.update_layout(
-        xaxis=dict(title="X-index of Pixel"),
-        yaxis=dict(title="Y-index of Pixel"),
-        xaxis_nticks=12,
-        yaxis_nticks=12,
-        margin=dict(l=40, r=40, t=40, b=40),
-        width=800,
-        height=800,
-    )
-    return heatmap_fig
-
-
-def add_peak_lines(fig, bin_peak, max_y, peak_halfwidth=peak_halfwidth):
-    fig.add_shape(
-        type="line",
-        x0=bin_peak,
-        y0=0,
-        x1=bin_peak,
-        y1=max_y,
-        line=dict(color="red", width=2),
-        opacity=0.4,
-    )
-    fig.add_shape(
-        type="line",
-        x0=bin_peak - peak_halfwidth,
-        y0=0,
-        x1=bin_peak - peak_halfwidth,
-        y1=max_y,
-        line=dict(color="red", width=1, dash="dash"),
-        opacity=0.5,
-    )
-    fig.add_shape(
-        type="line",
-        x0=bin_peak + peak_halfwidth,
-        y0=0,
-        x1=bin_peak + peak_halfwidth,
-        y1=max_y,
-        line=dict(color="red", width=1, dash="dash"),
-        opacity=0.5,
-    )
-    return fig
-
-
-def update_axis_range(fig, x_range, y_range):
-    fig.update_xaxes(range=[min(x_range), max(x_range)])
-    fig.update_yaxes(range=[min(y_range), max(y_range)])
-    return fig
-
-
-def update_spectrum_avg(counter, x_range, y_range):
-    df = all_data_dict[counter]["df"]
-
-    summed_array_bins = np.sum(df["array_bins"].values, axis=0)
-    avg_array_bins = summed_array_bins / len(df)
-    spectrum_avg_fig = go.Figure()
-    spectrum_avg_fig.add_trace(
-        go.Scatter(
-            x=np.arange(1, len(avg_array_bins) + 1),
-            y=avg_array_bins,
-            mode="lines",
-            name="Spectrum avg of all pixels",
-        )
-    )
-
-    spectrum_avg_fig.update_xaxes(range=[x_range[0], x_range[-1]])
-    spectrum_avg_fig.update_yaxes(range=[y_range[0], y_range[-1]])
-    title_string = f"""Avg all pixels, Avg total counts: {all_data_dict[counter]['avg_total_counts']}, 
-Avg peak counts: {all_data_dict[counter]['avg_peak_counts']}"""
-    spectrum_avg_fig.update_layout(
-        title=title_string,
-        xaxis_title="Bins",
-        yaxis_title="Counts",
-        width=700,
-        height=350,
-    )
-
-    spectrum_avg_fig = add_peak_lines(spectrum_avg_fig, peak_bin, max(avg_array_bins))
-
-    return spectrum_avg_fig
-
-
-def update_spectrum_pixel(counter, x_idx, y_idx, x_range, y_range):
-    df = all_data_dict[counter]["df"]
-
-    # filter of one pixel based on x and y index
-    pixel_df = df[(df["x_index"] == x_idx) & (df["y_index"] == y_idx)]
-
-    pixel_total_counts = pixel_df["total_count"].values[0]
-
-    pixel_peak_counts = pixel_df["peak_count"].values[0]
-
-    spectrum_pixel = pixel_df["array_bins"].values[0]
-
-    spectrum_pixel_fig = go.Figure()
-    spectrum_pixel_fig.add_trace(
-        go.Scatter(
-            x=np.arange(1, len(spectrum_pixel) + 1),
-            y=spectrum_pixel,
-            mode="lines",
-            name="Spectrum of pixel",
-        )
-    )
-
-    spectrum_pixel_fig.update_xaxes(range=[x_range[0], x_range[-1]])
-    spectrum_pixel_fig.update_yaxes(range=[y_range[0], y_range[-1]])
-    title_string = f"Pixel (x={x_idx}, y={y_idx}), Total counts: {pixel_total_counts}, Peak counts: {pixel_peak_counts}"
-    spectrum_pixel_fig.update_layout(
-        title=title_string,
-        xaxis_title="Bins",
-        yaxis_title="Counts",
-        width=700,
-        height=350,
-    )
-
-    spectrum_pixel_fig = add_peak_lines(
-        spectrum_pixel_fig, peak_bin, max(spectrum_pixel)
-    )
-
-    return spectrum_pixel_fig
+del EM, TD  # delete the original objects to free up memory
 
 
 app_defaults = {
@@ -261,20 +105,20 @@ app.layout = html.Div(
                                     id="count-type",
                                     options=[
                                         {
-                                            "label": "Peak Counts",
-                                            "value": "peak_counts",
+                                            "label": "Peak Count",
+                                            "value": "peak_count",
                                         },
                                         {
-                                            "label": "Total Counts",
-                                            "value": "total_counts",
+                                            "label": "Total Count",
+                                            "value": "total_count",
                                         },
                                         {
-                                            "label": "Non-Peak Counts",
-                                            "value": "non_peak_counts",
+                                            "label": "Non-Peak Count",
+                                            "value": "non_peak_count",
                                         },
                                         {"label": "Pixel ID", "value": "pixel_id"},
                                     ],
-                                    value="peak_counts",
+                                    value="peak_count",
                                     style={
                                         "display": "flex",
                                         "flex-direction": "column",
@@ -481,7 +325,9 @@ app.layout = html.Div(
     ],  # Add dropdown menu value as input
 )
 def update_dynamic_heatmaps(slider_value, count_type, normalization, color_scale):
-    return update_heatmap(slider_value, count_type, normalization, color_scale)
+    df = df_transformed_list[slider_value]
+
+    return create_pixelized_heatmap(df, count_type, normalization, color_scale)
 
 
 @app.callback(
@@ -493,7 +339,8 @@ def update_dynamic_heatmaps(slider_value, count_type, normalization, color_scale
     ],
 )
 def update_spectrum_avg_callback(slider_value, x_range, y_range):
-    return update_spectrum_avg(slider_value, x_range, y_range)
+    df = df_transformed_list[slider_value]
+    return create_spectrum_average(df, peak_bin, x_range, y_range)
 
 
 @app.callback(
@@ -507,7 +354,8 @@ def update_spectrum_avg_callback(slider_value, x_range, y_range):
     ],
 )
 def update_spectrum_pixel_callback(slider_value, x_index, y_index, x_range, y_range):
-    return update_spectrum_pixel(slider_value, x_index, y_index, x_range, y_range)
+    df = df_transformed_list[slider_value]
+    return create_spectrum_pixel(df, peak_bin, x_range, y_range, (x_index, y_index))
 
 
 @app.callback(
@@ -522,10 +370,29 @@ def update_spectrum_pixel_callback(slider_value, x_index, y_index, x_range, y_ra
 def update_spectrum_pixel_graph(slider_value, clickData, x_range, y_range):
     x_index_click = clickData["points"][0]["x"]
     y_index_click = clickData["points"][0]["y"]
-    print(f"{x_index_click = }, {y_index_click = }")
-    return update_spectrum_pixel(
-        slider_value, x_index_click, y_index_click, x_range, y_range
+    # print(f"{x_index_click = }, {y_index_click = }")
+    df = df_transformed_list[slider_value]
+    return create_spectrum_pixel(
+        df, peak_bin, x_range, y_range, (x_index_click, y_index_click)
     )
+
+
+@app.callback(
+    [
+        Output("x-axis-slider", "max"),
+        Output("y-axis-slider", "max"),
+        Output("x-axis-slider", "value"),
+        Output("y-axis-slider", "value"),
+    ],
+    [Input("csv-dropdown", "value")],
+)
+def update_slider_max(slider_value):
+    df = df_transformed_list[slider_value]
+    avg_array_bins = np.sum(df["array_bins"].values, axis=0) / len(df)
+    x_range = [0, len(avg_array_bins)]
+    y_range = [0, int(avg_array_bins.max() * 1.5)]
+
+    return max(x_range), max(y_range), x_range, y_range
 
 
 if __name__ == "__main__":
