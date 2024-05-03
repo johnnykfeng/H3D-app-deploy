@@ -4,6 +4,7 @@ from typing import List, Tuple
 import pandas as pd
 import numpy as np
 
+
 class ExtractModule:
     """
     A class for extracting and transforming data from a CSV file.
@@ -145,7 +146,7 @@ class ExtractModule:
             header=0,
         )
         return self.dataframe
-    
+
     @property
     def number_of_bins(self):
         if self.dataframe is None:
@@ -170,13 +171,11 @@ class ExtractModule:
             self.all_df.append(df_module)
         self.N_DF = len(self.all_df)
         return self.all_df
-    
+
     @property
     def number_of_modules(self):
         return len(self.all_df)
-    
-    
-    
+
     @staticmethod
     def extract_metadata(file_path, search_pattern, occurrence):
         """
@@ -193,6 +192,12 @@ class ExtractModule:
         3. If the target string is found, get the value in the cell to the right.
         4. Return the value if the desired occurrence is found.
         """
+        if file_path.endswith(".xlsx"):
+            print("You entered a .xlsx file")
+            alternate_file_path = file_path.replace(".xlsx", ".csv")
+            print(f"Converting {file_path} to {alternate_file_path}...")
+            file_path = ExtractModule.convert_xlsx_to_csv(csv_file)
+
         with open(file_path, "r") as csvfile:
             reader = csv.reader(csvfile)
             occurrences_found = 0
@@ -227,6 +232,13 @@ class ExtractModule:
         4. Append the value to a list.
         5. Return the list of values.
         """
+
+        if file_path.endswith(".xlsx"):
+            print("You entered a .xlsx file")
+            alternate_file_path = file_path.replace(".xlsx", ".csv")
+            print(f"Converting {file_path} to {alternate_file_path}...")
+            file_path = ExtractModule.convert_xlsx_to_csv(csv_file)
+
         with open(file_path, "r") as csvfile:
             reader = csv.reader(csvfile)
             # create an empty list to store the values
@@ -243,7 +255,8 @@ class ExtractModule:
                                 None
                             )  # append none if there is no value to the right
         return values  # return the list of values
-    
+
+
 if __name__ == "__main__":
     csv_file = f"data\module_voltage_data\Cs137-30min-1000V_Cs137.csv"
     EM = ExtractModule(csv_file)
