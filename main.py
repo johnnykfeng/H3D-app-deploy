@@ -1,5 +1,5 @@
 # from single_csv_dashboard import create_app
-from single_csv_dashboard_refactor import create_app
+from single_csv_dashboard import create_app
 
 if __name__ == "__main__":
 	app = create_app()
