@@ -1,4 +1,4 @@
-from .plots import (
+from .plotly_modules import (
     add_peak_lines,
     update_x_axis_range,
     update_y_axis_range,
