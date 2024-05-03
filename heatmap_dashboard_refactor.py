@@ -377,5 +377,23 @@ def update_spectrum_pixel_graph(slider_value, clickData, x_range, y_range):
     )
 
 
+@app.callback(
+    [
+        Output("x-axis-slider", "max"),
+        Output("y-axis-slider", "max"),
+        Output("x-axis-slider", "value"),
+        Output("y-axis-slider", "value"),
+    ],
+    [Input("csv-dropdown", "value")],
+)
+def update_slider_max(slider_value):
+    df = df_transformed_list[slider_value]
+    avg_array_bins = np.sum(df["array_bins"].values, axis=0) / len(df)
+    x_range = [0, len(avg_array_bins)]
+    y_range = [0, int(avg_array_bins.max() * 1.5)]
+
+    return max(x_range), max(y_range), x_range, y_range
+
+
 if __name__ == "__main__":
     app.run_server(debug=True, port=8057, use_reloader=True)
