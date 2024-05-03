@@ -56,7 +56,8 @@ def create_pixelized_heatmap(
     count_type: str, 
     normalization="normalized", 
     color_scale="Viridis", 
-    color_range: list[float] = None
+    color_range: list[float] = None,
+    text_auto=True, # use ".3g" for 3 significant digits
 ):
     heatmap_table = df.pivot_table(
         index="y_index", columns="x_index", values=count_type
@@ -73,7 +74,7 @@ def create_pixelized_heatmap(
         heatmap_table,
         color_continuous_scale=color_scale,  # use color_scale variable for colorscale
         range_color=color_range,
-        text_auto=".3g",
+        text_auto=text_auto,
         labels=dict(color="Value", x="X", y="Y"),
     )
 
