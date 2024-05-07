@@ -14,8 +14,8 @@ from plotting_modules import (
     create_pixelized_heatmap,
 )
 
-# csv_file = r"data_analysis\Co57_2mins_2000V_20cycles.csv"
-# csv_file = r"data\\Co57_2mins_2000V_20cycles_yaxis.csv"
+# data_file = r"data_analysis\Co57_2mins_2000V_20cycles.csv"
+# data_file = r"data\\Co57_2mins_2000V_20cycles_yaxis.csv"
 data_file = r"Z:\R&D\H3D_Mapper_Data\x-scan-test_ALL_DATA\x-scan-test.xlsx"
 # data_file = r"Z:\R&D\H3D_Mapper_Data\yscan-60s_ALL_DATA\yscan-60s.csv"
 # data_file = r"Z:\R&D\H3D_Mapper_Data\yscan-5min-2mm-b_ALL_DATA\yscan-5min-2mm-b.xlsx"
@@ -66,6 +66,9 @@ app.layout = html.Div(
                     [
                         html.H1(
                             "Moving Mask Measurement",
+                        ),
+                        html.H3(
+                            f"{data_file = }"
                         ),
                         html.Div(  # Radio buttons for heatmap
                             [
