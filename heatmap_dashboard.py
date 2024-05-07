@@ -16,9 +16,11 @@ from plotting_modules import (
 
 # csv_file = r"data_analysis\Co57_2mins_2000V_20cycles.csv"
 # csv_file = r"data\\Co57_2mins_2000V_20cycles_yaxis.csv"
-data_file = r"Z:\R&D\H3D_Mapper_Data\yscan-60s_ALL_DATA\yscan-60s.csv"
+data_file = r"Z:\R&D\H3D_Mapper_Data\x-scan-test_ALL_DATA\x-scan-test.xlsx"
+# data_file = r"Z:\R&D\H3D_Mapper_Data\yscan-60s_ALL_DATA\yscan-60s.csv"
 # data_file = r"Z:\R&D\H3D_Mapper_Data\yscan-5min-2mm-b_ALL_DATA\yscan-5min-2mm-b.xlsx"
 # data_file = r"Z:\R&D\H3D_Mapper_Data\yscan-5min-2mm-b_ALL_DATA\yscan-5min-2mm-b.csv"
+
 EM = ExtractModule(data_file)
 
 extracted_df_list = EM.extract_all_modules2df()
@@ -46,9 +48,10 @@ app_defaults = {
     "click-y": 7,
     "dropdown-x": 5,
     "dropdown-y": 6,
-    "x_slider_max": 200,
-    "x_range": [0, 200],
-    "y_range": [0, 25],
+    "x_slider_max": 202,
+    "y_slider_max": 100,
+    "x_range": [1, 202],
+    "y_range": [0, 100],
 }
 
 app = dash.Dash(__name__)
@@ -241,7 +244,7 @@ app.layout = html.Div(
                             [
                                 html.Label("X"),
                                 dcc.RangeSlider(
-                                    min=0,
+                                    min=1,
                                     max=app_defaults["x_slider_max"],
                                     value=app_defaults["x_range"],
                                     id="x-axis-slider",
@@ -257,7 +260,7 @@ app.layout = html.Div(
                                 html.Label("Y"),
                                 dcc.RangeSlider(
                                     min=0,
-                                    max=20,
+                                    max=app_defaults["y_slider_max"],
                                     value=app_defaults["y_range"],
                                     id="y-axis-slider",
                                 ),
