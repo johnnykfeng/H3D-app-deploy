@@ -1,9 +1,7 @@
+import numpy as np
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
-import plotly.express as px
-import plotly.graph_objects as go
-import numpy as np
 from data_handling_modules import (
     ExtractModule,
     TransformDf,
@@ -14,15 +12,31 @@ from plotting_modules import (
     create_pixelized_heatmap,
 )
 
-# csv_file = r"data_analysis\Co57_2mins_2000V_20cycles.csv"
-csv_file = r"data\\Co57_2mins_2000V_20cycles_yaxis.csv"
-EM = ExtractModule(csv_file)
+# data_file = r"data_analysis\Co57_2mins_2000V_20cycles.csv"
+# data_file = r"data\\Co57_2mins_2000V_20cycles_yaxis.csv"
+data_file = r"Z:\R&D\H3D_Mapper_Data\x-scan-test_ALL_DATA\x-scan-test.xlsx"
+# data_file = r"Z:\R&D\H3D_Mapper_Data\yscan-60s_ALL_DATA\yscan-60s.csv"
+# data_file = r"Z:\R&D\H3D_Mapper_Data\yscan-5min-2mm-b_ALL_DATA\yscan-5min-2mm-b.xlsx"
+# data_file = r"Z:\R&D\H3D_Mapper_Data\yscan-5min-2mm-b_ALL_DATA\yscan-5min-2mm-b.csv"
+
+EM = ExtractModule(data_file)
+
 extracted_df_list = EM.extract_all_modules2df()
-# df_transformed_list = EM.transform_all_df()
 TD = TransformDf()
 df_transformed_list = TD.transform_all_df(extracted_df_list)
+df_background = df_transformed_list[0]
+df_maskless = df_transformed_list[1]
+maskless_counts = df_maskless["total_count"].copy()
+maskless_counts[maskless_counts == 0] = 1
+# print(type(maskless_counts))
+# print(f"{maskless_counts.values = }")
 
-peak_bin = 224
+df_transformed_list_2 = []
+for df in df_transformed_list:
+    df["total_count_calibrated"] = df["total_count"] / maskless_counts
+    df_transformed_list_2.append(df)
+
+peak_bin = 95  # Am241 peak bin
 peak_halfwidth = 50
 
 TD.add_peak_counts_all(peak_bin, peak_halfwidth)
@@ -30,11 +44,8 @@ TD.add_peak_counts_all(peak_bin, peak_halfwidth)
 N_MODULES = EM.number_of_modules  # number of dataframes, used for slider
 N_PIXELS_X = EM.n_pixels_x  # 11 pixels
 N_PIXELS_Y = EM.n_pixels_y  # 11 pixels
-x_positions = EM.extract_metadata_list(csv_file, "Stage position x (in mm):")
-y_positions = EM.extract_metadata_list(csv_file, "Stage position y (in mm):")
-
-peak_bin = 224
-peak_halfwidth = 50
+x_positions = EM.extract_metadata_list(EM.csv_file, "Stage position x (in mm):")
+y_positions = EM.extract_metadata_list(EM.csv_file, "Stage position y (in mm):")
 
 del EM, TD  # delete the original objects to free up memory
 
@@ -46,8 +57,10 @@ app_defaults = {
     "click-y": 7,
     "dropdown-x": 5,
     "dropdown-y": 6,
-    "x_range": [1, 350],
-    "y_range": [0, 12],
+    "x_slider_max": 202,
+    "y_slider_max": 100,
+    "x_range": [1, 202],
+    "y_range": [0, 100],
 }
 
 app = dash.Dash(__name__)
@@ -55,42 +68,6 @@ app = dash.Dash(__name__)
 # layout for heatmap & slider
 app.layout = html.Div(
     [
-        html.Div(  # container for the first two fixed heatmaps
-            [
-                # # container for the first two fixed heatmaps
-                # html.Div(
-                #     [
-                #         # first heatmap (cycle 1)
-                #         html.Div(
-                #             [
-                #                 html.H1("Background - No Source"),
-                #                 dcc.Graph(
-                #                     id="heatmap-plot-0",
-                #                     figure=update_heatmap(0, "total_count"),
-                #                 ),
-                #             ],
-                #             style={"flex": 1},
-                #         ),
-                #         # second heatmap (cycle 2)
-                #         html.Div(
-                #             [
-                #                 html.H1("Source Exposure - No Mask"),
-                #                 dcc.Graph(
-                #                     id="heatmap-plot-1",
-                #                     figure=update_heatmap(1, "total_count"),
-                #                 ),
-                #             ],
-                #             style={"flex": 1},
-                #         ),
-                #     ],
-                #     style={
-                #         "display": "flex",
-                #         "flex-direction": "row",
-                #         "justify-content": "space-between",
-                #     },
-                # ),
-            ]
-        ),
         html.Div(
             [
                 # container for interactive heatmap and its slider
@@ -99,7 +76,8 @@ app.layout = html.Div(
                         html.H1(
                             "Moving Mask Measurement",
                         ),
-                        html.Div(  # Radio buttons for heatmap
+                        html.H3(f"{data_file = }"),
+                        html.Div( # Radio buttons for heatmap
                             [
                                 dcc.RadioItems(
                                     id="count-type",
@@ -117,6 +95,10 @@ app.layout = html.Div(
                                             "value": "non_peak_count",
                                         },
                                         {"label": "Pixel ID", "value": "pixel_id"},
+                                        {
+                                            "label": "Total Count Calibrated",
+                                            "value": "total_count_calibrated",
+                                        },
                                     ],
                                     value="peak_count",
                                     style={
@@ -163,7 +145,19 @@ app.layout = html.Div(
                             ],
                             style={"display": "flex", "flex-direction": "row"},
                         ),  # End of radio buttons for heatmap
-                        html.Div(
+                        html.Div( # Colorscale slider
+                            [
+                                html.Label("Colorscale Slider"),
+                                dcc.RangeSlider(
+                                    id="color-range-slider",
+                                    min=0,
+                                    max=1200,
+                                    step=None,
+                                    # value=[0, 1200],
+                                ),
+                            ]
+                        ),
+                        html.Div( # Heatmap container
                             [
                                 dcc.Graph(
                                     id="heatmap-dynamic-figure",
@@ -185,8 +179,7 @@ app.layout = html.Div(
                                 "margin-top": "20px",
                             },
                         ),
-                        # slider for rest of the heatmaps
-                        html.Div(
+                        html.Div( # Slider for heatmap
                             [
                                 html.Label("Measurement Slider"),
                                 dcc.Slider(
@@ -207,20 +200,19 @@ app.layout = html.Div(
                     ],
                     style={"flex": 1, "margin-top": "100px", "margin-left": "40px"},
                 ),
-                # spectrum plots container -- per pixel and avg
-                html.Div(
+                html.Div( # Spectrum plots container
                     [
                         html.H1("Spectrum Plots"),
-                        html.Div(
+                        html.Div( # spectrum-avg-figure
                             [dcc.Graph(id="spectrum-avg-figure")],
                             id="spectrum-avg-container",
                         ),
-                        html.Div(
+                        html.Div( # spectrum-pixel-1-figure
                             [dcc.Graph(id="spectrum-pixel-1-figure")],
                             id="spectrum-pixel-1-container",
                         ),
                         # container for the spectrum of pixel plot -- includes dropdown menus
-                        html.Div(
+                        html.Div( # dropdown menus for spectrum-pixel-2-figure
                             [
                                 # x-index dropdown
                                 html.Div(
@@ -271,13 +263,12 @@ app.layout = html.Div(
                                 ),
                             ],
                         ),
-                        # bins range slider (x-axis)
-                        html.Div(
+                        html.Div( # x-axis range sliders for spectrum plots
                             [
                                 html.Label("X"),
                                 dcc.RangeSlider(
                                     min=1,
-                                    max=1999,
+                                    max=app_defaults["x_slider_max"],
                                     value=app_defaults["x_range"],
                                     id="x-axis-slider",
                                 ),
@@ -286,13 +277,12 @@ app.layout = html.Div(
                                 "width": "70%",
                             },
                         ),
-                        # counts range slider (y-axis)
-                        html.Div(
+                        html.Div( # y-axis range sliders for spectrum plots
                             [
                                 html.Label("Y"),
                                 dcc.RangeSlider(
                                     min=0,
-                                    max=20,
+                                    max=app_defaults["y_slider_max"],
                                     value=app_defaults["y_range"],
                                     id="y-axis-slider",
                                 ),
@@ -322,12 +312,43 @@ app.layout = html.Div(
         Input("count-type", "value"),
         Input("normalization-buttons", "value"),
         Input("color-scale", "value"),
+        Input("color-range-slider", "value"),
     ],  # Add dropdown menu value as input
 )
-def update_dynamic_heatmaps(slider_value, count_type, normalization, color_scale):
-    df = df_transformed_list[slider_value]
+def update_dynamic_heatmaps(
+    slider_value, count_type, normalization, color_scale, color_range
+):
+    df = df_transformed_list_2[slider_value]
+    fig = create_pixelized_heatmap(
+        df,
+        count_type,
+        normalization,
+        color_scale,
+        color_range,
+        #    text_auto='.2e'
+        text_auto=".2g",
+    )
+    fig.update_layout(
+        title=f"stage-x (mm): {x_positions[slider_value]}, stage-y (mm): {y_positions[slider_value]}"
+    )
+    return fig
 
-    return create_pixelized_heatmap(df, count_type, normalization, color_scale)
+
+# callback to dynamically update the maximum value of slider based on max heatmap value
+@app.callback(
+    [
+        Output("color-range-slider", "min"),
+        Output("color-range-slider", "max"),
+    ],
+    Input("heatmap-dynamic-figure", "figure"),
+)
+def update_color_slider(figure):
+    # extract the data from the figure
+    z_data = figure["data"][0]["z"]
+    min_value = np.min(z_data)
+    max_value = np.max(z_data)
+
+    return min_value, max_value
 
 
 @app.callback(
@@ -340,7 +361,9 @@ def update_dynamic_heatmaps(slider_value, count_type, normalization, color_scale
 )
 def update_spectrum_avg_callback(slider_value, x_range, y_range):
     df = df_transformed_list[slider_value]
-    return create_spectrum_average(df, peak_bin, x_range, y_range)
+    return create_spectrum_average(
+        df, bin_peak=peak_bin, x_range=x_range, y_range=y_range
+    )
 
 
 @app.callback(
@@ -355,7 +378,9 @@ def update_spectrum_avg_callback(slider_value, x_range, y_range):
 )
 def update_spectrum_pixel_callback(slider_value, x_index, y_index, x_range, y_range):
     df = df_transformed_list[slider_value]
-    return create_spectrum_pixel(df, peak_bin, x_range, y_range, (x_index, y_index))
+    return create_spectrum_pixel(
+        df, (x_index, y_index), bin_peak=peak_bin, x_range=x_range, y_range=y_range
+    )
 
 
 @app.callback(
@@ -372,27 +397,32 @@ def update_spectrum_pixel_graph(slider_value, clickData, x_range, y_range):
     y_index_click = clickData["points"][0]["y"]
     # print(f"{x_index_click = }, {y_index_click = }")
     df = df_transformed_list[slider_value]
+
     return create_spectrum_pixel(
-        df, peak_bin, x_range, y_range, (x_index_click, y_index_click)
+        df,
+        (x_index_click, y_index_click),
+        bin_peak=peak_bin,
+        x_range=x_range,
+        y_range=y_range,
     )
 
 
-@app.callback(
-    [
-        Output("x-axis-slider", "max"),
-        Output("y-axis-slider", "max"),
-        Output("x-axis-slider", "value"),
-        Output("y-axis-slider", "value"),
-    ],
-    [Input("csv-dropdown", "value")],
-)
-def update_slider_max(slider_value):
-    df = df_transformed_list[slider_value]
-    avg_array_bins = np.sum(df["array_bins"].values, axis=0) / len(df)
-    x_range = [0, len(avg_array_bins)]
-    y_range = [0, int(avg_array_bins.max() * 1.5)]
+# @app.callback(
+#     [
+#         Output("x-axis-slider", "max"),
+#         Output("y-axis-slider", "max"),
+#         Output("x-axis-slider", "value"),
+#         Output("y-axis-slider", "value"),
+#     ],
+#     [Input("heatmap-slider", "value")],
+# )
+# def update_slider_max(slider_value):
+#     df = df_transformed_list[slider_value]
+#     avg_array_bins = np.sum(df["array_bins"].values, axis=0) / len(df)
+#     x_range = [0, len(avg_array_bins)]
+#     y_range = [0, int(avg_array_bins.max() * 1.5)]
 
-    return max(x_range), max(y_range), x_range, y_range
+#     return max(x_range), max(y_range), x_range, y_range
 
 
 if __name__ == "__main__":

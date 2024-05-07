@@ -57,26 +57,31 @@ class TransformDf:
             pandas.DataFrame: The transformed DataFrame with additional columns.
 
         """
-        # make new empty columns
-        df["x_index"] = np.nan
-        df["y_index"] = np.nan
+        
+        df_bins = df.iloc[:, :] # grab all columns and rows from input DataFrame
+        if df_bins.shape[1] != 200 and df_bins.shape[1] != 2000:
+            print(f"{df_bins.shape[1] = }")
+            raise ValueError("The DataFrame does not have the correct number of bins.")
+        elif df_bins.shape[0] != 121:
+            raise ValueError("The DataFrame does not have the correct number of pixels.")
+        
+        df_new = pd.DataFrame(index=range(1, 122)) # create a new DataFrame with 121 rows
+        if df_new.shape[0] != 121:
+            raise ValueError("The DataFrame does not have the correct number of pixels.")
+
+        df_new["x_index"] = np.nan
+        df_new["y_index"] = np.nan
 
         for xi in range(11):
             for yi in range(11):
-                df.loc[xi * 11 + yi + 1, "x_index"] = xi + 1
-                df.loc[xi * 11 + yi + 1, "y_index"] = yi + 1
+                df_new.loc[xi * 11 + yi + 1, "x_index"] = xi + 1
+                df_new.loc[xi * 11 + yi + 1, "y_index"] = yi + 1
 
         # change data type to save memory
-        df["x_index"] = df["x_index"].astype(int)
-        df["y_index"] = df["y_index"].astype(int)
-
-        # slice the bin columns only
-        df_bins = df.iloc[:, :]
-
-        df_new = df[
-            ["x_index", "y_index"]
-        ].copy()  # must use .copy(), pandas will give a warning
+        df_new["x_index"] = df_new["x_index"].astype(int)
+        df_new["y_index"] = df_new["y_index"].astype(int)
         df_new["pixel_id"] = df_new.index
+
         df_new["array_bins"] = df_bins.apply(lambda row: np.array(row), axis=1)
 
         df_new["total_count"] = df_new["array_bins"].apply(sum)
