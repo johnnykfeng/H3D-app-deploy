@@ -77,7 +77,7 @@ app.layout = html.Div(
                             "Moving Mask Measurement",
                         ),
                         html.H3(f"{data_file = }"),
-                        html.Div(  # Radio buttons for heatmap
+                        html.Div( # Radio buttons for heatmap
                             [
                                 dcc.RadioItems(
                                     id="count-type",
@@ -145,7 +145,7 @@ app.layout = html.Div(
                             ],
                             style={"display": "flex", "flex-direction": "row"},
                         ),  # End of radio buttons for heatmap
-                        html.Div(
+                        html.Div( # Colorscale slider
                             [
                                 html.Label("Colorscale Slider"),
                                 dcc.RangeSlider(
@@ -157,7 +157,7 @@ app.layout = html.Div(
                                 ),
                             ]
                         ),
-                        html.Div(
+                        html.Div( # Heatmap container
                             [
                                 dcc.Graph(
                                     id="heatmap-dynamic-figure",
@@ -179,8 +179,7 @@ app.layout = html.Div(
                                 "margin-top": "20px",
                             },
                         ),
-                        # slider for rest of the heatmaps
-                        html.Div(
+                        html.Div( # Slider for heatmap
                             [
                                 html.Label("Measurement Slider"),
                                 dcc.Slider(
@@ -201,20 +200,19 @@ app.layout = html.Div(
                     ],
                     style={"flex": 1, "margin-top": "100px", "margin-left": "40px"},
                 ),
-                # spectrum plots container -- per pixel and avg
-                html.Div(
+                html.Div( # Spectrum plots container
                     [
                         html.H1("Spectrum Plots"),
-                        html.Div(
+                        html.Div( # spectrum-avg-figure
                             [dcc.Graph(id="spectrum-avg-figure")],
                             id="spectrum-avg-container",
                         ),
-                        html.Div(
+                        html.Div( # spectrum-pixel-1-figure
                             [dcc.Graph(id="spectrum-pixel-1-figure")],
                             id="spectrum-pixel-1-container",
                         ),
                         # container for the spectrum of pixel plot -- includes dropdown menus
-                        html.Div(
+                        html.Div( # dropdown menus for spectrum-pixel-2-figure
                             [
                                 # x-index dropdown
                                 html.Div(
@@ -265,8 +263,7 @@ app.layout = html.Div(
                                 ),
                             ],
                         ),
-                        # bins range slider (x-axis)
-                        html.Div(
+                        html.Div( # x-axis range sliders for spectrum plots
                             [
                                 html.Label("X"),
                                 dcc.RangeSlider(
@@ -280,8 +277,7 @@ app.layout = html.Div(
                                 "width": "70%",
                             },
                         ),
-                        # counts range slider (y-axis)
-                        html.Div(
+                        html.Div( # y-axis range sliders for spectrum plots
                             [
                                 html.Label("Y"),
                                 dcc.RangeSlider(
