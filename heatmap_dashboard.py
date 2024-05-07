@@ -1,9 +1,7 @@
+import numpy as np
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
-import plotly.express as px
-import plotly.graph_objects as go
-import numpy as np
 from data_handling_modules import (
     ExtractModule,
     TransformDf,
@@ -26,8 +24,19 @@ EM = ExtractModule(data_file)
 extracted_df_list = EM.extract_all_modules2df()
 TD = TransformDf()
 df_transformed_list = TD.transform_all_df(extracted_df_list)
+df_background = df_transformed_list[0]
+df_maskless = df_transformed_list[1]
+maskless_counts = df_maskless["total_count"].copy()
+maskless_counts[maskless_counts == 0] = 1
+# print(type(maskless_counts))
+# print(f"{maskless_counts.values = }")
 
-peak_bin = 95 # Am241 peak bin
+df_transformed_list_2 = []
+for df in df_transformed_list:
+    df["total_count_calibrated"] = df["total_count"] / maskless_counts
+    df_transformed_list_2.append(df)
+
+peak_bin = 95  # Am241 peak bin
 peak_halfwidth = 50
 
 TD.add_peak_counts_all(peak_bin, peak_halfwidth)
@@ -67,9 +76,7 @@ app.layout = html.Div(
                         html.H1(
                             "Moving Mask Measurement",
                         ),
-                        html.H3(
-                            f"{data_file = }"
-                        ),
+                        html.H3(f"{data_file = }"),
                         html.Div(  # Radio buttons for heatmap
                             [
                                 dcc.RadioItems(
@@ -88,6 +95,10 @@ app.layout = html.Div(
                                             "value": "non_peak_count",
                                         },
                                         {"label": "Pixel ID", "value": "pixel_id"},
+                                        {
+                                            "label": "Total Count Calibrated",
+                                            "value": "total_count_calibrated",
+                                        },
                                     ],
                                     value="peak_count",
                                     style={
@@ -134,6 +145,18 @@ app.layout = html.Div(
                             ],
                             style={"display": "flex", "flex-direction": "row"},
                         ),  # End of radio buttons for heatmap
+                        html.Div(
+                            [
+                                html.Label("Colorscale Slider"),
+                                dcc.RangeSlider(
+                                    id="color-range-slider",
+                                    min=0,
+                                    max=1200,
+                                    step=None,
+                                    # value=[0, 1200],
+                                ),
+                            ]
+                        ),
                         html.Div(
                             [
                                 dcc.Graph(
@@ -293,13 +316,43 @@ app.layout = html.Div(
         Input("count-type", "value"),
         Input("normalization-buttons", "value"),
         Input("color-scale", "value"),
+        Input("color-range-slider", "value"),
     ],  # Add dropdown menu value as input
 )
-def update_dynamic_heatmaps(slider_value, count_type, normalization, color_scale):
-    df = df_transformed_list[slider_value]
-    fig = create_pixelized_heatmap(df, count_type, normalization, color_scale)
-    fig.update_layout(title=f"stage-x (mm): {x_positions[slider_value]}, stage-y (mm): {y_positions[slider_value]}")
+def update_dynamic_heatmaps(
+    slider_value, count_type, normalization, color_scale, color_range
+):
+    df = df_transformed_list_2[slider_value]
+    fig = create_pixelized_heatmap(
+        df,
+        count_type,
+        normalization,
+        color_scale,
+        color_range,
+        #    text_auto='.2e'
+        text_auto=".2g",
+    )
+    fig.update_layout(
+        title=f"stage-x (mm): {x_positions[slider_value]}, stage-y (mm): {y_positions[slider_value]}"
+    )
     return fig
+
+
+# callback to dynamically update the maximum value of slider based on max heatmap value
+@app.callback(
+    [
+        Output("color-range-slider", "min"),
+        Output("color-range-slider", "max"),
+    ],
+    Input("heatmap-dynamic-figure", "figure"),
+)
+def update_color_slider(figure):
+    # extract the data from the figure
+    z_data = figure["data"][0]["z"]
+    min_value = np.min(z_data)
+    max_value = np.max(z_data)
+
+    return min_value, max_value
 
 
 @app.callback(
