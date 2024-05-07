@@ -18,7 +18,6 @@ from plotting_modules import (
 csv_file = r"data\\Co57_2mins_2000V_20cycles_yaxis.csv"
 EM = ExtractModule(csv_file)
 extracted_df_list = EM.extract_all_modules2df()
-# df_transformed_list = EM.transform_all_df()
 TD = TransformDf()
 df_transformed_list = TD.transform_all_df(extracted_df_list)
 
@@ -340,7 +339,7 @@ def update_dynamic_heatmaps(slider_value, count_type, normalization, color_scale
 )
 def update_spectrum_avg_callback(slider_value, x_range, y_range):
     df = df_transformed_list[slider_value]
-    return create_spectrum_average(df, peak_bin, x_range, y_range)
+    return create_spectrum_average(df, bin_peak=peak_bin, x_range=x_range, y_range=y_range)
 
 
 @app.callback(
@@ -355,7 +354,10 @@ def update_spectrum_avg_callback(slider_value, x_range, y_range):
 )
 def update_spectrum_pixel_callback(slider_value, x_index, y_index, x_range, y_range):
     df = df_transformed_list[slider_value]
-    return create_spectrum_pixel(df, peak_bin, x_range, y_range, (x_index, y_index))
+    return create_spectrum_pixel(df, (x_index, y_index), 
+                              bin_peak=peak_bin, 
+                              x_range=x_range, 
+                              y_range=y_range)
 
 
 @app.callback(
@@ -372,27 +374,28 @@ def update_spectrum_pixel_graph(slider_value, clickData, x_range, y_range):
     y_index_click = clickData["points"][0]["y"]
     # print(f"{x_index_click = }, {y_index_click = }")
     df = df_transformed_list[slider_value]
-    return create_spectrum_pixel(
-        df, peak_bin, x_range, y_range, (x_index_click, y_index_click)
-    )
 
+    return create_spectrum_pixel(df, (x_index_click, y_index_click), 
+                                        bin_peak=peak_bin, 
+                                        x_range=x_range, 
+                                        y_range=y_range)
 
-@app.callback(
-    [
-        Output("x-axis-slider", "max"),
-        Output("y-axis-slider", "max"),
-        Output("x-axis-slider", "value"),
-        Output("y-axis-slider", "value"),
-    ],
-    [Input("csv-dropdown", "value")],
-)
-def update_slider_max(slider_value):
-    df = df_transformed_list[slider_value]
-    avg_array_bins = np.sum(df["array_bins"].values, axis=0) / len(df)
-    x_range = [0, len(avg_array_bins)]
-    y_range = [0, int(avg_array_bins.max() * 1.5)]
+# @app.callback(
+#     [
+#         Output("x-axis-slider", "max"),
+#         Output("y-axis-slider", "max"),
+#         Output("x-axis-slider", "value"),
+#         Output("y-axis-slider", "value"),
+#     ],
+#     [Input("heatmap-slider", "value")],
+# )
+# def update_slider_max(slider_value):
+#     df = df_transformed_list[slider_value]
+#     avg_array_bins = np.sum(df["array_bins"].values, axis=0) / len(df)
+#     x_range = [0, len(avg_array_bins)]
+#     y_range = [0, int(avg_array_bins.max() * 1.5)]
 
-    return max(x_range), max(y_range), x_range, y_range
+#     return max(x_range), max(y_range), x_range, y_range
 
 
 if __name__ == "__main__":
