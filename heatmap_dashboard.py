@@ -15,13 +15,17 @@ from plotting_modules import (
 )
 
 # csv_file = r"data_analysis\Co57_2mins_2000V_20cycles.csv"
-csv_file = r"data\\Co57_2mins_2000V_20cycles_yaxis.csv"
-EM = ExtractModule(csv_file)
+# csv_file = r"data\\Co57_2mins_2000V_20cycles_yaxis.csv"
+data_file = r"Z:\R&D\H3D_Mapper_Data\yscan-60s_ALL_DATA\yscan-60s.csv"
+# data_file = r"Z:\R&D\H3D_Mapper_Data\yscan-5min-2mm-b_ALL_DATA\yscan-5min-2mm-b.xlsx"
+# data_file = r"Z:\R&D\H3D_Mapper_Data\yscan-5min-2mm-b_ALL_DATA\yscan-5min-2mm-b.csv"
+EM = ExtractModule(data_file)
+
 extracted_df_list = EM.extract_all_modules2df()
 TD = TransformDf()
 df_transformed_list = TD.transform_all_df(extracted_df_list)
 
-peak_bin = 224
+peak_bin = 95 # Am241 peak bin
 peak_halfwidth = 50
 
 TD.add_peak_counts_all(peak_bin, peak_halfwidth)
@@ -29,11 +33,8 @@ TD.add_peak_counts_all(peak_bin, peak_halfwidth)
 N_MODULES = EM.number_of_modules  # number of dataframes, used for slider
 N_PIXELS_X = EM.n_pixels_x  # 11 pixels
 N_PIXELS_Y = EM.n_pixels_y  # 11 pixels
-x_positions = EM.extract_metadata_list(csv_file, "Stage position x (in mm):")
-y_positions = EM.extract_metadata_list(csv_file, "Stage position y (in mm):")
-
-peak_bin = 224
-peak_halfwidth = 50
+x_positions = EM.extract_metadata_list(EM.csv_file, "Stage position x (in mm):")
+y_positions = EM.extract_metadata_list(EM.csv_file, "Stage position y (in mm):")
 
 del EM, TD  # delete the original objects to free up memory
 
@@ -45,8 +46,9 @@ app_defaults = {
     "click-y": 7,
     "dropdown-x": 5,
     "dropdown-y": 6,
-    "x_range": [1, 350],
-    "y_range": [0, 12],
+    "x_slider_max": 200,
+    "x_range": [0, 200],
+    "y_range": [0, 25],
 }
 
 app = dash.Dash(__name__)
@@ -54,42 +56,6 @@ app = dash.Dash(__name__)
 # layout for heatmap & slider
 app.layout = html.Div(
     [
-        html.Div(  # container for the first two fixed heatmaps
-            [
-                # # container for the first two fixed heatmaps
-                # html.Div(
-                #     [
-                #         # first heatmap (cycle 1)
-                #         html.Div(
-                #             [
-                #                 html.H1("Background - No Source"),
-                #                 dcc.Graph(
-                #                     id="heatmap-plot-0",
-                #                     figure=update_heatmap(0, "total_count"),
-                #                 ),
-                #             ],
-                #             style={"flex": 1},
-                #         ),
-                #         # second heatmap (cycle 2)
-                #         html.Div(
-                #             [
-                #                 html.H1("Source Exposure - No Mask"),
-                #                 dcc.Graph(
-                #                     id="heatmap-plot-1",
-                #                     figure=update_heatmap(1, "total_count"),
-                #                 ),
-                #             ],
-                #             style={"flex": 1},
-                #         ),
-                #     ],
-                #     style={
-                #         "display": "flex",
-                #         "flex-direction": "row",
-                #         "justify-content": "space-between",
-                #     },
-                # ),
-            ]
-        ),
         html.Div(
             [
                 # container for interactive heatmap and its slider
@@ -275,8 +241,8 @@ app.layout = html.Div(
                             [
                                 html.Label("X"),
                                 dcc.RangeSlider(
-                                    min=1,
-                                    max=1999,
+                                    min=0,
+                                    max=app_defaults["x_slider_max"],
                                     value=app_defaults["x_range"],
                                     id="x-axis-slider",
                                 ),
@@ -325,8 +291,9 @@ app.layout = html.Div(
 )
 def update_dynamic_heatmaps(slider_value, count_type, normalization, color_scale):
     df = df_transformed_list[slider_value]
-
-    return create_pixelized_heatmap(df, count_type, normalization, color_scale)
+    fig = create_pixelized_heatmap(df, count_type, normalization, color_scale)
+    fig.update_layout(title=f"stage-x (mm): {x_positions[slider_value]}, stage-y (mm): {y_positions[slider_value]}")
+    return fig
 
 
 @app.callback(
@@ -339,7 +306,9 @@ def update_dynamic_heatmaps(slider_value, count_type, normalization, color_scale
 )
 def update_spectrum_avg_callback(slider_value, x_range, y_range):
     df = df_transformed_list[slider_value]
-    return create_spectrum_average(df, bin_peak=peak_bin, x_range=x_range, y_range=y_range)
+    return create_spectrum_average(
+        df, bin_peak=peak_bin, x_range=x_range, y_range=y_range
+    )
 
 
 @app.callback(
@@ -354,10 +323,9 @@ def update_spectrum_avg_callback(slider_value, x_range, y_range):
 )
 def update_spectrum_pixel_callback(slider_value, x_index, y_index, x_range, y_range):
     df = df_transformed_list[slider_value]
-    return create_spectrum_pixel(df, (x_index, y_index), 
-                              bin_peak=peak_bin, 
-                              x_range=x_range, 
-                              y_range=y_range)
+    return create_spectrum_pixel(
+        df, (x_index, y_index), bin_peak=peak_bin, x_range=x_range, y_range=y_range
+    )
 
 
 @app.callback(
@@ -375,10 +343,14 @@ def update_spectrum_pixel_graph(slider_value, clickData, x_range, y_range):
     # print(f"{x_index_click = }, {y_index_click = }")
     df = df_transformed_list[slider_value]
 
-    return create_spectrum_pixel(df, (x_index_click, y_index_click), 
-                                        bin_peak=peak_bin, 
-                                        x_range=x_range, 
-                                        y_range=y_range)
+    return create_spectrum_pixel(
+        df,
+        (x_index_click, y_index_click),
+        bin_peak=peak_bin,
+        x_range=x_range,
+        y_range=y_range,
+    )
+
 
 # @app.callback(
 #     [
