@@ -134,7 +134,8 @@ def create_spectrum_average(df, **kwargs):
         avg_peak_counts = calculate_peak_count(avg_array_bins, kwargs["bin_peak"])
         if 'peak_halfwidth' in kwargs:
             fig = add_peak_lines(fig, kwargs["bin_peak"], max(avg_array_bins), kwargs["peak_halfwidth"])
-        fig = add_peak_lines(fig, kwargs["bin_peak"], max(avg_array_bins))
+        else:
+            fig = add_peak_lines(fig, kwargs["bin_peak"], max(avg_array_bins))
 
     if 'x_range' in kwargs:
         fig = update_x_axis_range(fig, kwargs["x_range"])

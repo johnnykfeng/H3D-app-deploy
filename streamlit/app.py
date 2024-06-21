@@ -2,11 +2,8 @@ import streamlit as st
 import pandas as pd
 import sys
 import os
-import plotly.express as px
-import numpy as np
 import csv
 import codecs
-import plotly.graph_objects as go
 
 sys.path.append(r"C:\Users\10552\OneDrive - Redlen Technologies\Code\H3D-app-deploy")
 from data_handling_modules import TransformDf
@@ -35,7 +32,7 @@ project_root_dir = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 )
 sys.path.append(project_root_dir)
-from Extract_module import TransformDf
+
 
 st.title("H3D Data Analysis App")
 
@@ -53,14 +50,18 @@ color_scale = st.sidebar.radio(
 
 reverse_color_theme = st.sidebar.checkbox("Reverse color theme")
 
+if reverse_color_theme:
+    color_scale = color_scale + "_r"
+
 count_type = st.sidebar.radio(
     "Choose a count type: ", ("total_count", "peak_count", "non_peak_count", "pixel_id")
 )
 
 normalize_check = st.sidebar.checkbox("Normalize heatmap")
 
-if reverse_color_theme:
-    color_scale = color_scale + "_r"
+bin_peak_manual = st.sidebar.text_input("Default bin peak", value="93")
+
+# peak_halfwidth_manual = 
 
 uploaded_csv_file1 = st.sidebar.file_uploader(
     "Please upload a CSV file:", type="csv", key="fileUploader1"
@@ -96,7 +97,7 @@ for i, uploaded_csv_file in enumerate(
                 radiation_source = "Cs137"
         else:
             radiation_source = "Unknown"
-            default_bin_peak = ""
+            default_bin_peak = bin_peak_manual
 
         if uploaded_csv_file.type != "text/csv":
             st.error("Please upload a CSV file:")
