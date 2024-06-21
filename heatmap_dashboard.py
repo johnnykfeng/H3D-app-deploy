@@ -14,10 +14,11 @@ from plotting_modules import (
 
 # data_file = r"data_analysis\Co57_2mins_2000V_20cycles.csv"
 # data_file = r"data\\Co57_2mins_2000V_20cycles_yaxis.csv"
-data_file = r"Z:\R&D\H3D_Mapper_Data\x-scan-test_ALL_DATA\x-scan-test.xlsx"
+# data_file = r"Z:\R&D\H3D_Mapper_Data\x-scan-test_ALL_DATA\x-scan-test.xlsx"
 # data_file = r"Z:\R&D\H3D_Mapper_Data\yscan-60s_ALL_DATA\yscan-60s.csv"
 # data_file = r"Z:\R&D\H3D_Mapper_Data\yscan-5min-2mm-b_ALL_DATA\yscan-5min-2mm-b.xlsx"
 # data_file = r"Z:\R&D\H3D_Mapper_Data\yscan-5min-2mm-b_ALL_DATA\yscan-5min-2mm-b.csv"
+data_file = r"R:\H3D-sensor-test\mask_sweep_2024-06-20_ALL_DATA\mask_sweep_2024-06-20.xlsx"
 
 EM = ExtractModule(data_file)
 
@@ -326,11 +327,11 @@ def update_dynamic_heatmaps(
         color_scale,
         color_range,
         #    text_auto='.2e'
-        text_auto=".2g",
+        # text_auto=".2g",
     )
-    fig.update_layout(
-        title=f"stage-x (mm): {x_positions[slider_value]}, stage-y (mm): {y_positions[slider_value]}"
-    )
+    # fig.update_layout(
+    #     title=f"stage-x (mm): {x_positions[slider_value]}, stage-y (mm): {y_positions[slider_value]}"
+    # )
     return fig
 
 
