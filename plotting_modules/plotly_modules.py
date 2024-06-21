@@ -5,7 +5,8 @@ import numpy as np
 
 def calculate_peak_count(array: np.array, peak_bin: int, peak_halfwidth=25):
     """Calculate the counts in a peak given the array and the peak bin number."""
-    peak_count = np.sum(array[peak_bin - peak_halfwidth : peak_bin + peak_halfwidth])
+    peak_count = np.sum(
+        array[peak_bin - peak_halfwidth: peak_bin + peak_halfwidth])
     return peak_count
 
 
@@ -52,12 +53,12 @@ def update_y_axis_range(fig, y_range):
 
 
 def create_pixelized_heatmap(
-    df, # pd.DataFrame
-    count_type: str, 
-    normalization="normalized", 
-    color_scale="Viridis", 
+    df,  # pd.DataFrame
+    count_type: str,
+    normalization="normalized",
+    color_scale="Viridis",
     color_range: list[float] = None,
-    text_auto=True, # use ".3g" for 3 significant digits
+    text_auto=True,  # use ".3g" for 3 significant digits
 ):
     heatmap_table = df.pivot_table(
         index="y_index", columns="x_index", values=count_type
@@ -91,50 +92,23 @@ def create_pixelized_heatmap(
     return heatmap_fig
 
 
-def create_spectrum_average_old(df, bin_peak=None, peak_halfwidth=None, x_range=None, y_range=None):
-    summed_array_bins = np.sum(df["array_bins"].values, axis=0)
-    avg_array_bins = summed_array_bins / len(df)
-    avg_total_counts = np.sum(df["total_count"].values) / len(df)
-
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=np.arange(len(avg_array_bins)), y=avg_array_bins))
-
-    if bin_peak is not None:
-        avg_peak_counts = calculate_peak_count(avg_array_bins, bin_peak)
-        if peak_halfwidth is not None:
-            fig = add_peak_lines(fig, bin_peak, max(avg_array_bins), peak_halfwidth)
-        fig = add_peak_lines(fig, bin_peak, max(avg_array_bins))
-        
-
-    if x_range is not None:
-        fig = update_x_axis_range(fig, x_range)
-
-    if y_range is not None:
-        fig = update_y_axis_range(fig, y_range)
-
-    fig.update_layout(
-        title=f"Average spectrum, Total count= {avg_total_counts:.1f}, Peak count= {avg_peak_counts:.1f} ",
-        xaxis_title="Bin Index",
-        yaxis_title="Average Counts",
-        width=700,
-        height=350,
-    )
-
-    return fig
-
 def create_spectrum_average(df, **kwargs):
     summed_array_bins = np.sum(df["array_bins"].values, axis=0)
     avg_array_bins = summed_array_bins / len(df)
     avg_total_counts = np.sum(df["total_count"].values) / len(df)
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=np.arange(len(avg_array_bins)), y=avg_array_bins))
+    fig.add_trace(go.Scatter(x=np.arange(
+        len(avg_array_bins)), y=avg_array_bins))
 
     if 'bin_peak' in kwargs:
-        avg_peak_counts = calculate_peak_count(avg_array_bins, kwargs["bin_peak"])
+        avg_peak_counts = calculate_peak_count(
+            avg_array_bins, kwargs["bin_peak"])
         if 'peak_halfwidth' in kwargs:
-            fig = add_peak_lines(fig, kwargs["bin_peak"], max(avg_array_bins), kwargs["peak_halfwidth"])
-        fig = add_peak_lines(fig, kwargs["bin_peak"], max(avg_array_bins))
+            fig = add_peak_lines(fig, kwargs["bin_peak"], max(
+                avg_array_bins), kwargs["peak_halfwidth"])
+        else:
+            fig = add_peak_lines(fig, kwargs["bin_peak"], max(avg_array_bins))
 
     if 'x_range' in kwargs:
         fig = update_x_axis_range(fig, kwargs["x_range"])
@@ -152,53 +126,6 @@ def create_spectrum_average(df, **kwargs):
 
     return fig
 
-def create_spectrum_pixel_old(
-    df, bin_peak=None, peak_halfwidth=None, x_range=None, y_range=None, *pixel_indices
-):
-    fig = go.Figure()
-
-    for pixel_index in pixel_indices:
-        if isinstance(pixel_index, tuple):
-            x_index, y_index = pixel_index
-        else:
-            raise ValueError("Pixel index must be a tuple of (x_index, y_index)")
-
-        if (x_index is not None) and (y_index is not None):
-            pixel_df = df[(df["x_index"] == x_index) & (df["y_index"] == y_index)]
-            array_bins = pixel_df["array_bins"].values[0]
-            fig.add_trace(
-                go.Scatter(
-                    x=np.arange(1, len(array_bins) + 1),
-                    y=array_bins,
-                    name=f"Pixel ({x_index}, {y_index})",
-                )
-            )
-            if bin_peak is not None:
-                if peak_halfwidth is not None:
-                    fig = add_peak_lines(fig, bin_peak, max(array_bins), peak_halfwidth)
-                fig = add_peak_lines(fig, bin_peak, max(array_bins))
-
-    if x_range is not None:
-        fig = update_x_axis_range(fig, x_range)
-    if y_range is not None:
-        fig = update_y_axis_range(fig, y_range)
-
-    fig.update_layout(
-        xaxis_title="Bin Index",
-        yaxis_title="Counts",
-        width=700,
-        height=350,
-    )
-
-    # If only one pixel is selected, display the total and peak counts in the title
-    if len(pixel_indices) == 1:
-        total_count = pixel_df["total_count"].values[0]
-        peak_count = pixel_df["peak_count"].values[0]
-        fig.update_layout(
-            title=f"Pixel ({x_index}, {y_index}), Total count = {total_count}, Peak count = {peak_count}",
-        )
-
-    return fig
 
 def create_spectrum_pixel(
     df, *pixel_indices, **kwargs,
@@ -209,10 +136,12 @@ def create_spectrum_pixel(
         if isinstance(pixel_index, tuple):
             x_index, y_index = pixel_index
         else:
-            raise ValueError("Pixel index must be a tuple of (x_index, y_index)")
+            raise ValueError(
+                "Pixel index must be a tuple of (x_index, y_index)")
 
         if (x_index is not None) and (y_index is not None):
-            pixel_df = df[(df["x_index"] == x_index) & (df["y_index"] == y_index)]
+            pixel_df = df[(df["x_index"] == x_index) &
+                          (df["y_index"] == y_index)]
             array_bins = pixel_df["array_bins"].values[0]
             fig.add_trace(
                 go.Scatter(
@@ -223,9 +152,11 @@ def create_spectrum_pixel(
             )
             if 'bin_peak' in kwargs:
                 if 'peak_halfwidth' in kwargs:
-                    fig = add_peak_lines(fig, kwargs['bin_peak'], 
+                    fig = add_peak_lines(fig, kwargs['bin_peak'],
                                          max(array_bins), kwargs['peak_halfwidth'])
-                fig = add_peak_lines(fig, kwargs['bin_peak'], max(array_bins))
+                else:
+                    fig = add_peak_lines(
+                        fig, kwargs['bin_peak'], max(array_bins))
 
     if 'x_range' in kwargs:
         fig = update_x_axis_range(fig, kwargs['x_range'])
@@ -248,6 +179,7 @@ def create_spectrum_pixel(
         )
 
     return fig
+
 
 def create_surface_plot_3d(figure, color_scale):
     # extract the data from the figure

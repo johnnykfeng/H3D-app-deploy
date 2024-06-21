@@ -196,7 +196,7 @@ class ExtractModule:
             print("You entered a .xlsx file")
             alternate_file_path = file_path.replace(".xlsx", ".csv")
             print(f"Converting {file_path} to {alternate_file_path}...")
-            file_path = ExtractModule.convert_xlsx_to_csv(csv_file)
+            file_path = ExtractModule.convert_xlsx_to_csv(file_path)
 
         with open(file_path, "r") as csvfile:
             reader = csv.reader(csvfile)
@@ -237,7 +237,7 @@ class ExtractModule:
             print("You entered a .xlsx file")
             alternate_file_path = file_path.replace(".xlsx", ".csv")
             print(f"Converting {file_path} to {alternate_file_path}...")
-            file_path = ExtractModule.convert_xlsx_to_csv(csv_file)
+            file_path = ExtractModule.convert_xlsx_to_csv(file_path)
 
         with open(file_path, "r") as csvfile:
             reader = csv.reader(csvfile)

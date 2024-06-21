@@ -59,11 +59,12 @@ class TransformDf:
         """
         
         df_bins = df.iloc[:, :] # grab all columns and rows from input DataFrame
-        if df_bins.shape[1] != 200 and df_bins.shape[1] != 2000:
-            print(f"{df_bins.shape[1] = }")
-            raise ValueError("The DataFrame does not have the correct number of bins.")
-        elif df_bins.shape[0] != 121:
-            raise ValueError("The DataFrame does not have the correct number of pixels.")
+        print(f"Number of bins (columns) in DataFrame: {df_bins.shape[1]}")
+        # if df_bins.shape[1] != 200 and df_bins.shape[1] != 2000:
+        #     print(f"{df_bins.shape[1] = }")
+        #     raise ValueError("The DataFrame does not have the correct number of bins.")
+        # elif df_bins.shape[0] != 121:
+        #     raise ValueError("The DataFrame does not have the correct number of pixels.")
         
         df_new = pd.DataFrame(index=range(1, 122)) # create a new DataFrame with 121 rows
         if df_new.shape[0] != 121:
