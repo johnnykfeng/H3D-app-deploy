@@ -108,7 +108,6 @@ def create_spectrum_average(df, **kwargs):
             fig = add_peak_lines(fig, kwargs["bin_peak"], max(
                 avg_array_bins), kwargs["peak_halfwidth"])
         else:
-            else:
             fig = add_peak_lines(fig, kwargs["bin_peak"], max(avg_array_bins))
 
     if 'x_range' in kwargs:
