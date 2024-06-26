@@ -18,7 +18,7 @@ from plotting_modules import (
 # data_file = r"Z:\R&D\H3D_Mapper_Data\yscan-60s_ALL_DATA\yscan-60s.csv"
 # data_file = r"Z:\R&D\H3D_Mapper_Data\yscan-5min-2mm-b_ALL_DATA\yscan-5min-2mm-b.xlsx"
 # data_file = r"Z:\R&D\H3D_Mapper_Data\yscan-5min-2mm-b_ALL_DATA\yscan-5min-2mm-b.csv"
-data_file = r"R:\H3D-sensor-test\mask_sweep_2024-06-20_ALL_DATA\mask_sweep_2024-06-20.xlsx"
+data_file = r"R:\H3D-sensor-test\mask_sweep_2024-06-20_ALL_DATA\mask_sweep_2024-06-20.csv"
 
 EM = ExtractModule(data_file)
 
@@ -29,8 +29,6 @@ df_background = df_transformed_list[0]
 df_maskless = df_transformed_list[1]
 maskless_counts = df_maskless["total_count"].copy()
 maskless_counts[maskless_counts == 0] = 1
-# print(type(maskless_counts))
-# print(f"{maskless_counts.values = }")
 
 df_transformed_list_2 = []
 for df in df_transformed_list:
@@ -45,8 +43,8 @@ TD.add_peak_counts_all(peak_bin, peak_halfwidth)
 N_MODULES = EM.number_of_modules  # number of dataframes, used for slider
 N_PIXELS_X = EM.n_pixels_x  # 11 pixels
 N_PIXELS_Y = EM.n_pixels_y  # 11 pixels
-x_positions = EM.extract_metadata_list(EM.csv_file, "Stage position x (in mm):")
-y_positions = EM.extract_metadata_list(EM.csv_file, "Stage position y (in mm):")
+x_positions = EM.extract_metadata_list(EM.csv_file, "stage_x_mm:")
+y_positions = EM.extract_metadata_list(EM.csv_file, "stage_y_mm:")
 
 del EM, TD  # delete the original objects to free up memory
 
@@ -329,9 +327,9 @@ def update_dynamic_heatmaps(
         #    text_auto='.2e'
         # text_auto=".2g",
     )
-    # fig.update_layout(
-    #     title=f"stage-x (mm): {x_positions[slider_value]}, stage-y (mm): {y_positions[slider_value]}"
-    # )
+    fig.update_layout(
+        title=f"stage-x (mm): {x_positions[slider_value]}, stage-y (mm): {y_positions[slider_value]}"
+    )
     return fig
 
 
